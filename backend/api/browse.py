@@ -5,12 +5,74 @@ This replaces the old Entity/Relation/Chapter conceptual split with a simple
 hierarchical browser. Every path is just a node with content and children.
 """
 
+import os
+import re
+from pathlib import Path as FilePath
+from dotenv import dotenv_values, set_key
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from db import get_graph_service, get_glossary_service, get_db_manager
 from db.models import Path as PathModel, Edge as EdgeModel, ROOT_NODE_UUID
 from db.namespace import get_namespace
 from sqlalchemy import select, distinct
+
+
+def _get_dotenv_path() -> FilePath:
+    """Resolve the .env file path (project root)."""
+    backend_dir = FilePath(__file__).resolve().parent.parent
+    root_dir = backend_dir.parent
+    return root_dir / ".env"
+
+
+def _boot_uris_env_key(namespace: str) -> str:
+    """Return the .env key for boot URIs for a given namespace."""
+    if namespace:
+        return f"CORE_MEMORY_URIS__{namespace}"
+    return "CORE_MEMORY_URIS"
+
+
+def _read_boot_uris(namespace: str = "") -> list[str]:
+    """Read boot URIs for the given namespace from .env or environment.
+
+    Resolution order: CORE_MEMORY_URIS__{namespace} → CORE_MEMORY_URIS (fallback).
+    """
+    env_path = _get_dotenv_path()
+    ns_key = _boot_uris_env_key(namespace)
+    fallback_key = "CORE_MEMORY_URIS"
+
+    env_vars = dotenv_values(env_path) if env_path.exists() else {}
+
+    val = None
+
+    if ns_key != fallback_key:
+        if ns_key in env_vars:
+            val = env_vars[ns_key]
+        elif ns_key in os.environ:
+            val = os.environ[ns_key]
+
+    if val is None:
+        if fallback_key in env_vars:
+            val = env_vars[fallback_key]
+        elif fallback_key in os.environ:
+            val = os.environ[fallback_key]
+
+    if not val:
+        return []
+    return [u.strip() for u in val.split(",") if u.strip()]
+
+
+def _write_boot_uris(uris: list[str], namespace: str = "") -> None:
+    """Write boot URIs for the given namespace to .env."""
+    env_path = _get_dotenv_path()
+    env_key = _boot_uris_env_key(namespace)
+    new_value = ",".join(uris)
+
+    if not env_path.exists():
+        env_path.write_text("", encoding="utf-8")
+
+    set_key(env_path, env_key, new_value)
+    os.environ[env_key] = new_value
 
 router = APIRouter(prefix="/browse", tags=["browse"])
 
@@ -199,7 +261,7 @@ async def get_node(
             "priority": memory["priority"],
             "disclosure": memory["disclosure"],
             "created_at": memory["created_at"],
-            "is_virtual": memory.get("node_uuid") == ROOT_NODE_UUID,
+            "is_virtual": memory.get("created_at") is None,
             "aliases": aliases,
             "node_uuid": node_uuid,
             "glossary_keywords": glossary_keywords,
@@ -279,3 +341,41 @@ async def remove_glossary_keyword(body: GlossaryRemove):
     if not result.get("success"):
         raise HTTPException(status_code=404, detail="Keyword binding not found")
     return {"success": True}
+
+
+# =============================================================================
+# Boot URI Management
+# =============================================================================
+
+
+class BootUriToggle(BaseModel):
+    uri: str
+    enabled: bool
+
+
+@router.get("/boot-uris")
+async def get_boot_uris():
+    """Return boot URIs for the current namespace."""
+    return {"uris": _read_boot_uris(get_namespace())}
+
+
+@router.put("/boot-uris")
+async def toggle_boot_uri(body: BootUriToggle):
+    """Add or remove a URI from the boot list for the current namespace."""
+    ns = get_namespace()
+    current = _read_boot_uris(ns)
+    uri = body.uri.strip()
+    if not uri:
+        raise HTTPException(status_code=422, detail="URI cannot be empty")
+
+    if not re.match(r"^[a-zA-Z0-9_-]+://[a-zA-Z0-9_/\.-]*$", uri):
+        raise HTTPException(status_code=422, detail="Invalid URI format")
+
+    if body.enabled:
+        if uri not in current:
+            current.append(uri)
+    else:
+        current = [u for u in current if u != uri]
+
+    _write_boot_uris(current, ns)
+    return {"success": True, "uris": current}

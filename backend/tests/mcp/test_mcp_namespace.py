@@ -154,6 +154,55 @@ async def test_system_boot_isolation(mcp_env):
     assert "Agent A" not in boot_b
 
 
+@pytest.mark.asyncio
+async def test_system_boot_per_namespace_uris(mcp_env):
+    """Per-namespace CORE_MEMORY_URIS override the global fallback."""
+    from mcp_server import read_memory
+
+    await _seed_two_agents()
+
+    # agent_a: boot only core://agent (skip core://my_user)
+    # agent_b: boot only core://agent (its own override)
+    os.environ["CORE_MEMORY_URIS__agent_a"] = "core://agent"
+    os.environ["CORE_MEMORY_URIS__agent_b"] = "core://agent"
+    try:
+        set_namespace("agent_a")
+        boot_a = await read_memory("system://boot")
+        assert "Agent A" in boot_a
+        # core://my_user is in the global fallback but NOT in agent_a's override
+        assert "met User" not in boot_a
+
+        set_namespace("agent_b")
+        boot_b = await read_memory("system://boot")
+        assert "Agent B" in boot_b
+        assert "Agent A" not in boot_b
+    finally:
+        os.environ.pop("CORE_MEMORY_URIS__agent_a", None)
+        os.environ.pop("CORE_MEMORY_URIS__agent_b", None)
+
+
+@pytest.mark.asyncio
+async def test_system_boot_per_namespace_empty_override(mcp_env):
+    """An explicit empty CORE_MEMORY_URIS__ns should NOT fall back to the global list."""
+    from mcp_server import read_memory
+    
+    # Mock global list with something
+    os.environ["CORE_MEMORY_URIS"] = "core://global"
+    
+    # Mock an explicit empty list for agent_c
+    os.environ["CORE_MEMORY_URIS__agent_c"] = ""
+    
+    try:
+        set_namespace("agent_c")
+        boot_c = await read_memory("system://boot")
+        # Should NOT load global
+        assert "core://global" not in boot_c
+        assert "(No core memories loaded" in boot_c or "Loaded: 0/0" in boot_c
+    finally:
+        os.environ.pop("CORE_MEMORY_URIS", None)
+        os.environ.pop("CORE_MEMORY_URIS__agent_c", None)
+
+
 # ====================================================================
 # 3. system://index and system://index/<domain>
 # ====================================================================

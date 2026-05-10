@@ -581,7 +581,7 @@ npm run dev
 ```ini
 # 可用的记忆域（逗号分隔）—— 记忆 URI 的顶层命名空间
 # "system" 域始终内置，无需列出
-VALID_DOMAINS=core,writer,game,notes
+VALID_DOMAINS=core,writer,game,notes,narrative
 
 # AI 启动时自动加载的核心记忆 —— 你的 AI 的"灵魂锚点"
 CORE_MEMORY_URIS=core://agent,core://my_user,core://agent/my_user
@@ -589,6 +589,7 @@ CORE_MEMORY_URIS=core://agent,core://my_user,core://agent/my_user
 
 *   **`VALID_DOMAINS`**：控制 AI 可以创建记忆的命名空间。需要额外的领域（如 `work`、`research`）就在这里加。
 *   **`CORE_MEMORY_URIS`**：控制 `system://boot` 启动时载入哪些记忆。为 AI 建立了身份和关系记忆后，把 URI 加到这里即可自动唤醒。
+*   **`CORE_MEMORY_URIS__<namespace>`**：使用命名空间时，可为每个 Agent 指定独立的启动记忆。未设置的 namespace 会降级到全局 `CORE_MEMORY_URIS`。
 
 </details>
 

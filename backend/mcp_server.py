@@ -305,7 +305,7 @@ mcp = FastMCP(
 # =============================================================================
 VALID_DOMAINS = [
     d.strip()
-    for d in os.getenv("VALID_DOMAINS", "core,writer,game,notes,system").split(",")
+    for d in os.getenv("VALID_DOMAINS", "core,writer,game,notes,narrative,system").split(",")
 ]
 DEFAULT_DOMAIN = "core"
 PUBLIC_READONLY_MCP = os.getenv("PUBLIC_READONLY_MCP", "").lower() in (
@@ -315,17 +315,6 @@ PUBLIC_READONLY_MCP = os.getenv("PUBLIC_READONLY_MCP", "").lower() in (
     "on",
 )
 
-# =============================================================================
-# Core Memories Configuration
-# =============================================================================
-# These URIs will be auto-loaded when system://boot is read.
-# Configure via CORE_MEMORY_URIS in .env (comma-separated).
-#
-# Format: full URIs (e.g., "core://agent", "core://agent/my_user")
-# =============================================================================
-CORE_MEMORY_URIS = [
-    uri.strip() for uri in os.getenv("CORE_MEMORY_URIS", "").split(",") if uri.strip()
-]
 
 
 # =============================================================================
@@ -459,7 +448,40 @@ async def read_memory(uri: str) -> str:
     # HARDCODED SYSTEM INTERCEPTIONS
     # These bypass the database lookup to serve dynamic system content
     if uri.strip() == "system://boot":
-        return await generate_boot_memory_view(CORE_MEMORY_URIS)
+        from dotenv import dotenv_values
+
+        ns = get_namespace()
+        ns_key = f"CORE_MEMORY_URIS__{ns}" if ns else ""
+
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            core_uris_str = None
+            if ns_key and ns_key in os.environ:
+                core_uris_str = os.environ[ns_key]
+            if core_uris_str is None:
+                core_uris_str = os.environ.get("CORE_MEMORY_URIS", "")
+        else:
+            current_env_path = dotenv_path if os.path.exists(dotenv_path) else globals().get('_dotenv_path')
+            env_vars = dotenv_values(current_env_path) if current_env_path else {}
+
+            core_uris_str = None
+            if ns_key:
+                if ns_key in env_vars:
+                    core_uris_str = env_vars[ns_key]
+                elif ns_key in os.environ:
+                    core_uris_str = os.environ[ns_key]
+            
+            if core_uris_str is None:
+                if "CORE_MEMORY_URIS" in env_vars:
+                    core_uris_str = env_vars["CORE_MEMORY_URIS"]
+                elif "CORE_MEMORY_URIS" in os.environ:
+                    core_uris_str = os.environ["CORE_MEMORY_URIS"]
+                else:
+                    core_uris_str = ""
+
+        current_core_uris = [
+            u.strip() for u in core_uris_str.split(",") if u.strip()
+        ]
+        return await generate_boot_memory_view(current_core_uris)
 
     # system://index/<domain>
     stripped = uri.strip()

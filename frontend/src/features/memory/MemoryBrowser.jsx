@@ -9,10 +9,11 @@ import {
   Hash, 
   AlertTriangle,
   Link2,
-  Star
+  Star,
+  Zap
 } from 'lucide-react';
 import clsx from 'clsx';
-import { api } from '../../lib/api';
+import { api, getBootUris, toggleBootUri } from '../../lib/api';
 import PriorityBadge from './components/PriorityBadge';
 import GlossaryHighlighter from './components/GlossaryHighlighter';
 import KeywordManager from './components/KeywordManager';
@@ -35,6 +36,7 @@ export default function MemoryBrowser() {
   const [editDisclosure, setEditDisclosure] = useState('');
   const [editPriority, setEditPriority] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [bootUris, setBootUris] = useState([]);
 
   const currentRouteRef = useRef({ domain, path });
   useEffect(() => {
@@ -43,6 +45,7 @@ export default function MemoryBrowser() {
 
   useEffect(() => {
     api.get('/browse/domains').then(res => setDomains(res.data)).catch(() => {});
+    getBootUris().then(setBootUris).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -121,8 +124,19 @@ export default function MemoryBrowser() {
     }
   };
 
+  const handleBootToggle = async (uri) => {
+    const isCurrentlyInBoot = bootUris.includes(uri);
+    try {
+      const result = await toggleBootUri(uri, !isCurrentlyInBoot);
+      setBootUris(result.uris);
+    } catch (err) {
+      console.error('Failed to toggle boot URI:', err);
+    }
+  };
+
   const isRoot = !path;
   const node = data.node;
+  const currentUri = `${domain}://${path}`;
 
   return (
     <div className="flex h-full bg-[#05050A] text-slate-300 font-sans selection:bg-indigo-500/30 selection:text-indigo-200 overflow-hidden">
@@ -195,7 +209,7 @@ export default function MemoryBrowser() {
             ) : (
                 <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     
-                    {node && (!isRoot || !node.is_virtual || editing) && (
+                    {node && (
                         <div className="space-y-4">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="space-y-3 min-w-0 flex-1">
@@ -238,6 +252,21 @@ export default function MemoryBrowser() {
                                 </div>
                                 
                                 <div className="flex gap-2 flex-shrink-0">
+                                    {!editing && (
+                                        <button
+                                            onClick={() => handleBootToggle(currentUri)}
+                                            title={bootUris.includes(currentUri) ? "Remove from Boot" : "Add to Boot"}
+                                            className={clsx(
+                                                "flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-all border",
+                                                bootUris.includes(currentUri)
+                                                    ? "bg-amber-950/40 border-amber-700/50 text-amber-400 hover:bg-amber-950/60 hover:border-amber-600/60 shadow-[0_0_12px_rgba(245,158,11,0.1)]"
+                                                    : "bg-slate-800 border-slate-700 text-slate-500 hover:text-amber-400 hover:border-amber-800/40 hover:bg-slate-800/80"
+                                            )}
+                                        >
+                                            <Zap size={15} className={bootUris.includes(currentUri) ? "fill-amber-400" : ""} />
+                                            Boot
+                                        </button>
+                                    )}
                                     {editing ? (
                                         <>
                                             <button onClick={cancelEditing} className="p-2 hover:bg-slate-800 rounded text-slate-400 transition-colors"><X size={18} /></button>
@@ -245,7 +274,7 @@ export default function MemoryBrowser() {
                                                 <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
                                             </button>
                                         </>
-                                    ) : (
+                                    ) : !node.is_virtual && (
                                         <button onClick={startEditing} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-sm font-medium transition-colors border border-slate-700 hover:border-slate-600">
                                             <Edit3 size={16} /> Edit
                                         </button>
@@ -286,29 +315,31 @@ export default function MemoryBrowser() {
                                 </div>
                             )}
 
-                            <div className={clsx(
-                                "relative rounded-xl border overflow-hidden transition-all duration-300",
-                                editing ? "bg-slate-900 border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.1)]" : "bg-[#0A0A12]/50 border-slate-800/50"
-                            )}>
-                                {editing ? (
-                                    <textarea 
-                                        value={editContent}
-                                        onChange={e => setEditContent(e.target.value)}
-                                        className="w-full h-96 p-6 bg-transparent text-slate-200 font-mono text-sm leading-relaxed focus:outline-none resize-y"
-                                        spellCheck={false}
-                                    />
-                                ) : (
-                                    <div className="p-6 md:p-8 prose prose-invert prose-sm max-w-none">
-                                        <GlossaryHighlighter
-                                          key={node.node_uuid}
-                                          content={node.content || ''}
-                                          glossary={node.glossary_matches || []}
-                                          currentNodeUuid={node.node_uuid}
-                                          onNavigate={navigateTo}
+                            {(!node.is_virtual || editing) && (
+                                <div className={clsx(
+                                    "relative rounded-xl border overflow-hidden transition-all duration-300",
+                                    editing ? "bg-slate-900 border-indigo-500/50 shadow-[0_0_30px_rgba(99,102,241,0.1)]" : "bg-[#0A0A12]/50 border-slate-800/50"
+                                )}>
+                                    {editing ? (
+                                        <textarea 
+                                            value={editContent}
+                                            onChange={e => setEditContent(e.target.value)}
+                                            className="w-full h-96 p-6 bg-transparent text-slate-200 font-mono text-sm leading-relaxed focus:outline-none resize-y"
+                                            spellCheck={false}
                                         />
-                                    </div>
-                                )}
-                            </div>
+                                    ) : (
+                                        <div className="p-6 md:p-8 prose prose-invert prose-sm max-w-none">
+                                            <GlossaryHighlighter
+                                              key={node.node_uuid}
+                                              content={node.content || ''}
+                                              glossary={node.glossary_matches || []}
+                                              currentNodeUuid={node.node_uuid}
+                                              onNavigate={navigateTo}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -328,6 +359,8 @@ export default function MemoryBrowser() {
                                         key={`${child.domain || domain}:${child.path}`} 
                                         node={child}
                                         currentDomain={domain}
+                                        isInBoot={bootUris.includes(child.uri)}
+                                        onBootToggle={() => handleBootToggle(child.uri)}
                                         onClick={() => navigateTo(child.path, child.domain)} 
                                     />
                                 ))}

@@ -1,18 +1,26 @@
 import React from 'react';
-import { ChevronRight, Folder, FileText, AlertTriangle, Link2 } from 'lucide-react';
+import { ChevronRight, Folder, FileText, AlertTriangle, Link2, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import PriorityBadge from './PriorityBadge';
 
-const NodeGridCard = ({ node, currentDomain, onClick }) => {
+const NodeGridCard = ({ node, currentDomain, isInBoot, onBootToggle, onClick }) => {
   const isCrossDomain = node.domain && node.domain !== currentDomain;
+
+  const handleBootClick = (e) => {
+    e.stopPropagation();
+    onBootToggle?.();
+  };
+
   return (
   <button 
     onClick={onClick}
     className={clsx(
       "group relative flex flex-col items-start p-5 bg-[#0A0A12] border rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(99,102,241,0.1)] hover:-translate-y-1 text-left w-full h-full overflow-hidden",
-      isCrossDomain
-        ? "border-violet-800/40 hover:border-violet-500/40"
-        : "border-slate-800/50 hover:border-indigo-500/30"
+      isInBoot
+        ? "border-amber-800/40 hover:border-amber-600/50"
+        : isCrossDomain
+          ? "border-violet-800/40 hover:border-violet-500/40"
+          : "border-slate-800/50 hover:border-indigo-500/30"
     )}
   >
     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -32,7 +40,23 @@ const NodeGridCard = ({ node, currentDomain, onClick }) => {
           </span>
         )}
       </div>
-      <PriorityBadge priority={node.priority} />
+      
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <PriorityBadge priority={node.priority} />
+        {/* Boot toggle inline */}
+        <div
+          onClick={handleBootClick}
+          title={isInBoot ? "Remove from Boot" : "Add to Boot"}
+          className={clsx(
+            "p-1 rounded-md transition-all z-10",
+            isInBoot
+              ? "text-amber-400 bg-amber-950/50 border border-amber-700/40 shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+              : "text-slate-700 hover:text-amber-400/70 hover:bg-slate-800/60 opacity-0 group-hover:opacity-100 border border-transparent"
+          )}
+        >
+          <Zap size={13} className={isInBoot ? "fill-amber-400" : ""} />
+        </div>
+      </div>
     </div>
     
     {node.disclosure && (

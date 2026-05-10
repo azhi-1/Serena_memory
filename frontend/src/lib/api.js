@@ -59,4 +59,12 @@ export const getDomains = () =>
 export const getNamespaces = () =>
   api.get('/browse/namespaces').then(res => res.data);
 
+// ============ Boot URI API ============
+
+export const getBootUris = () =>
+  api.get('/browse/boot-uris').then(res => res.data.uris);
+
+export const toggleBootUri = (uri, enabled) =>
+  api.put('/browse/boot-uris', { uri, enabled }).then(res => res.data);
+
 export default api;

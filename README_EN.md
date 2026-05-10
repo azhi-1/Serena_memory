@@ -601,7 +601,7 @@ Two optional settings in `.env` — configure these once you're familiar with th
 ```ini
 # Available memory domains (comma-separated) — top-level URI namespaces
 # The "system" domain is always built-in, no need to list it
-VALID_DOMAINS=core,writer,game,notes
+VALID_DOMAINS=core,writer,game,notes,narrative
 
 # Core memories auto-loaded at AI startup — your AI's "soul anchor"
 CORE_MEMORY_URIS=core://agent,core://my_user,core://agent/my_user
@@ -609,6 +609,7 @@ CORE_MEMORY_URIS=core://agent,core://my_user,core://agent/my_user
 
 *   **`VALID_DOMAINS`**: Controls which namespaces the AI can create memories in. Need additional domains (like `work`, `research`)? Add them here.
 *   **`CORE_MEMORY_URIS`**: Controls which memories are loaded at `system://boot` startup. Once you've created identity and relationship memories for your AI, add their URIs here for automatic loading on boot.
+*   **`CORE_MEMORY_URIS__<namespace>`**: When using namespaces, each agent can have its own boot path. Namespaces without a dedicated variable fall back to the global `CORE_MEMORY_URIS`.
 
 </details>
 

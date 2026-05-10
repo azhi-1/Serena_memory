@@ -71,7 +71,6 @@ async def isolated_test_environment(tmp_path, monkeypatch):
 
     mcp_server = _reload_module("mcp_server")
     mcp_server.VALID_DOMAINS = VALID_DOMAINS
-    mcp_server.CORE_MEMORY_URIS = CORE_MEMORY_URIS
 
     yield {
         "database_url": db_url,

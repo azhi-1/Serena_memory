@@ -13,7 +13,7 @@
 | `uri` | `str` | 记忆的 URI，如 `"core://agent"` |
 
 **特殊系统 URI：**
-- `system://boot` — 加载所有核心记忆（.env 中 `CORE_MEMORY_URIS` 配置的）
+- `system://boot` — 加载核心记忆（优先读取 `CORE_MEMORY_URIS__<namespace>`，未设置时降级到 `CORE_MEMORY_URIS`）
 - `system://index/<domain>` — 特定域名记忆索引
 - `system://recent` — 最近修改的 10 条记忆
 - `system://recent/N` — 最近修改的 N 条记忆
