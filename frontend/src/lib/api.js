@@ -65,6 +65,12 @@ export const deleteNode = (domain, path) =>
 export const searchMemories = (q, { domain, limit } = {}) =>
   api.get('/browse/search', { params: { q, domain, limit } }).then(res => res.data);
 
+export const createMemory = (data) =>
+  api.post('/browse/node', data).then(res => res.data);
+
+export const addAlias = (data) =>
+  api.post('/browse/node/alias', data).then(res => res.data);
+
 // ============ Settings API ============
 
 export const getSettings = () =>

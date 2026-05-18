@@ -15,9 +15,11 @@ import {
   Search,
   FileText,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { api, getSettingsBootUris, toggleSettingsBootUri, deleteNode, searchMemories } from '../../lib/api';
+import { api, getSettingsBootUris, toggleSettingsBootUri, deleteNode, searchMemories, createMemory, addAlias } from '../../lib/api';
+import CreateMemoryModal from './components/CreateMemoryModal';
 import PriorityBadge from './components/PriorityBadge';
 import GlossaryHighlighter from './components/GlossaryHighlighter';
 import KeywordManager from './components/KeywordManager';
@@ -45,6 +47,17 @@ export default function MemoryBrowser() {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Create Memory
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Add Alias
+  const [showAliasInput, setShowAliasInput] = useState(false);
+  const [aliasPath, setAliasPath] = useState('');
+  const [aliasDisclosure, setAliasDisclosure] = useState('');
+  const [aliasPriority, setAliasPriority] = useState(0);
+  const [aliasSaving, setAliasSaving] = useState(false);
+  const [aliasError, setAliasError] = useState('');
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -162,6 +175,35 @@ export default function MemoryBrowser() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleAddAlias = async () => {
+    setAliasSaving(true);
+    setAliasError('');
+    try {
+      await addAlias({
+        new_path: aliasPath.trim(),
+        target_path: path,
+        disclosure: aliasDisclosure.trim(),
+        new_domain: domain,
+        target_domain: domain,
+        priority: aliasPriority,
+      });
+      setShowAliasInput(false);
+      setAliasPath('');
+      setAliasDisclosure('');
+      setAliasPriority(0);
+      await refreshData();
+    } catch (err) {
+      setAliasError(err.response?.data?.detail || err.message);
+    } finally {
+      setAliasSaving(false);
+    }
+  };
+
+  const handleCreateMemory = async () => {
+    setShowCreateModal(false);
+    await refreshData();
   };
 
   const handleSearch = useCallback((query) => {
@@ -364,6 +406,59 @@ export default function MemoryBrowser() {
                                             </div>
                                         </div>
                                     )}
+                                    {!editing && !node.is_virtual && (
+                                        <div>
+                                            <button
+                                                onClick={() => setShowAliasInput(!showAliasInput)}
+                                                className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-indigo-400 transition-colors mt-1"
+                                            >
+                                                <Plus size={12} />
+                                                Add alias
+                                            </button>
+                                            {showAliasInput && (
+                                                <div className="flex flex-wrap items-center gap-2 mt-2 p-3 bg-slate-900/50 border border-slate-800/50 rounded-lg">
+                                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                                        <span className="text-xs text-slate-500">{domain}://</span>
+                                                        <input
+                                                            type="text"
+                                                            value={aliasPath}
+                                                            onChange={e => setAliasPath(e.target.value)}
+                                                            placeholder="new/path/here"
+                                                            className="flex-1 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50"
+                                                        />
+                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        value={aliasDisclosure}
+                                                        onChange={e => setAliasDisclosure(e.target.value)}
+                                                        placeholder="disclosure..."
+                                                        className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-40 focus:outline-none focus:border-indigo-500/50"
+                                                    />
+                                                    <input
+                                                        type="number" min="0"
+                                                        value={aliasPriority}
+                                                        onChange={e => setAliasPriority(parseInt(e.target.value) || 0)}
+                                                        className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 w-16 font-mono focus:outline-none focus:border-indigo-500/50"
+                                                        title="priority"
+                                                    />
+                                                    <button
+                                                        onClick={handleAddAlias}
+                                                        disabled={aliasSaving || !aliasPath.trim() || !aliasDisclosure.trim()}
+                                                        className="px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded transition-colors disabled:opacity-50"
+                                                    >
+                                                        {aliasSaving ? '...' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setShowAliasInput(false); setAliasError(''); }}
+                                                        className="p-1 hover:bg-slate-800 rounded text-slate-500"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                    {aliasError && <span className="text-xs text-rose-400 w-full">{aliasError}</span>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {!editing && !node.is_virtual && (
                                         <KeywordManager
@@ -388,6 +483,15 @@ export default function MemoryBrowser() {
                                         >
                                             <Zap size={15} className={bootUris.includes(currentUri) ? "fill-amber-400" : ""} />
                                             Boot
+                                        </button>
+                                    )}
+                                    {!editing && (
+                                        <button
+                                            onClick={() => setShowCreateModal(true)}
+                                            className="flex items-center gap-2 px-4 py-2 bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 rounded text-sm font-medium transition-colors border border-emerald-800/40 hover:border-emerald-700/50"
+                                        >
+                                            <Plus size={16} />
+                                            Create
                                         </button>
                                     )}
                                     {editing ? (
@@ -510,6 +614,17 @@ export default function MemoryBrowser() {
             )}
          </div>
       </div>
+
+      {/* Create Memory Modal */}
+      {showCreateModal && (
+        <CreateMemoryModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={handleCreateMemory}
+          parentPath={path}
+          currentDomain={domain}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       {deleteTarget && (

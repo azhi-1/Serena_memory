@@ -13,6 +13,7 @@ from db import get_graph_service, get_glossary_service, get_db_manager, get_sear
 from db.models import Path as PathModel, Edge as EdgeModel, ROOT_NODE_UUID
 from db.namespace import get_namespace
 from sqlalchemy import select, distinct
+import re
 
 router = APIRouter(prefix="/browse", tags=["browse"])
 
@@ -31,6 +32,24 @@ class GlossaryAdd(BaseModel):
 class GlossaryRemove(BaseModel):
     keyword: str
     node_uuid: str
+
+
+class CreateMemoryRequest(BaseModel):
+    parent_path: str
+    content: str
+    priority: int
+    disclosure: str
+    title: str | None = None
+    domain: str = "core"
+
+
+class CreateAliasRequest(BaseModel):
+    new_path: str
+    target_path: str
+    disclosure: str
+    new_domain: str = "core"
+    target_domain: str = "core"
+    priority: int = 0
 
 
 @router.get("/namespaces")
@@ -242,6 +261,65 @@ async def update_node(
         raise HTTPException(status_code=422, detail=str(e))
     
     return {"success": True, "memory_id": result["new_memory_id"]}
+
+
+@router.post("/node")
+async def create_node(body: CreateMemoryRequest):
+    """
+    Create a new memory node.
+
+    Human-facing direct edit endpoint: intentionally bypasses changeset/review.
+    """
+    graph = get_graph_service()
+
+    if not body.disclosure:
+        raise HTTPException(status_code=422, detail="disclosure must not be empty")
+
+    if body.title is not None and not re.match(r'^[a-zA-Z0-9_-]+$', body.title):
+        raise HTTPException(status_code=422, detail="title must match ^[a-zA-Z0-9_-]+$")
+
+    try:
+        result = await graph.create_memory(
+            parent_path=body.parent_path,
+            content=body.content,
+            priority=body.priority,
+            title=body.title,
+            disclosure=body.disclosure,
+            domain=body.domain,
+            namespace=get_namespace(),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return {"success": True, "uri": result["uri"], "memory_id": result["id"]}
+
+
+@router.post("/node/alias")
+async def create_alias(body: CreateAliasRequest):
+    """
+    Add an alias (alternate path) to an existing node.
+
+    Human-facing direct edit endpoint: intentionally bypasses changeset/review.
+    """
+    graph = get_graph_service()
+
+    if not body.disclosure:
+        raise HTTPException(status_code=422, detail="disclosure must not be empty")
+
+    try:
+        await graph.add_path(
+            new_path=body.new_path,
+            target_path=body.target_path,
+            new_domain=body.new_domain,
+            target_domain=body.target_domain,
+            priority=body.priority,
+            disclosure=body.disclosure,
+            namespace=get_namespace(),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    return {"success": True, "uri": f"{body.new_domain}://{body.new_path}"}
 
 
 # =============================================================================
