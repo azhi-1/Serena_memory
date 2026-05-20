@@ -4,9 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  // VITE_API_TARGET 指向后端 API 地址，默认 localhost:8234（开发环境）。
-  // 生产环境（mode=production）可设为实际后端地址。
-  const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:8234'
+  // VITE_API_TARGET overrides the default backend address (e.g. for dev on a different port).
+  const apiTarget = env.VITE_API_TARGET || 'http://127.0.0.1:8233'
 
   return {
     plugins: [react()],

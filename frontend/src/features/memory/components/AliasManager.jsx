@@ -1,20 +1,64 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link2, X, Save, Plus, Loader2 } from 'lucide-react';
-import { deleteNode, addAlias } from '../../../lib/api';
+import { api, deleteNode, addAlias } from '../../../lib/api';
 
 const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
   const [adding, setAdding] = useState(false);
-  const [newPath, setNewPath] = useState('');
+  const [pathSegments, setPathSegments] = useState([]);   // selected segments: ['nocturne', 'salem']
+  const [childrenByLevel, setChildrenByLevel] = useState([[]]); // options at each level
+  const [leafName, setLeafName] = useState('');
   const [newDisclosure, setNewDisclosure] = useState('');
   const [newPriority, setNewPriority] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [removing, setRemoving] = useState(null);
-  const pathInputRef = useRef(null);
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  const [loadingLevel, setLoadingLevel] = useState(-1);
+  const leafInputRef = useRef(null);
+
+  const fetchChildren = async (parentPath) => {
+    try {
+      const res = await api.get('/browse/node', { params: { domain: currentDomain, path: parentPath, nav_only: true } });
+      return (res.data.children || []).map(c => c.path.split('/').pop());
+    } catch {
+      return [];
+    }
+  };
 
   useEffect(() => {
-    if (adding && pathInputRef.current) pathInputRef.current.focus();
+    if (adding) {
+      setLoadingLevel(0);
+      fetchChildren('').then(names => {
+        setChildrenByLevel([names]);
+        setLoadingLevel(-1);
+      });
+    }
   }, [adding]);
+
+  const handleSegmentChange = async (level, value) => {
+    if (value === '') {
+      // selected "(stop here)" — truncate to this level
+      setPathSegments(prev => prev.slice(0, level));
+      setChildrenByLevel(prev => prev.slice(0, level + 1));
+    } else {
+      const newSegments = [...pathSegments.slice(0, level), value];
+      setPathSegments(newSegments);
+      setChildrenByLevel(prev => prev.slice(0, level + 1));
+
+      // fetch children of the newly selected path
+      const fullPath = newSegments.join('/');
+      setLoadingLevel(level + 1);
+      const children = await fetchChildren(fullPath);
+      if (children.length > 0) {
+        setChildrenByLevel(prev => [...prev, children]);
+      }
+      setLoadingLevel(-1);
+    }
+  };
+
+  useEffect(() => {
+    if (adding && loadingLevel === -1 && leafInputRef.current) leafInputRef.current.focus();
+  }, [adding, loadingLevel]);
 
   const parseAlias = (aliasUri) => {
     const idx = aliasUri.indexOf('://');
@@ -36,21 +80,30 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
     }
   };
 
+  const buildFullPath = () => {
+    const leaf = leafName.trim();
+    if (!leaf) return '';
+    const parent = pathSegments.join('/');
+    return parent ? `${parent}/${leaf}` : leaf;
+  };
+
   const handleAdd = async () => {
-    const pt = newPath.trim();
-    if (!pt || !newDisclosure.trim()) return;
+    const fullPath = buildFullPath();
+    if (!fullPath || !newDisclosure.trim()) return;
     setSaving(true);
     setError('');
     try {
       await addAlias({
-        new_path: pt,
+        new_path: fullPath,
         target_path: currentPath,
         disclosure: newDisclosure.trim(),
         new_domain: currentDomain,
         target_domain: currentDomain,
         priority: newPriority,
       });
-      setNewPath('');
+      setPathSegments([]);
+      setChildrenByLevel([[]]);
+      setLeafName('');
       setNewDisclosure('');
       setNewPriority(0);
       setAdding(false);
@@ -64,12 +117,14 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') handleAdd();
-    if (e.key === 'Escape') { setAdding(false); setNewPath(''); setNewDisclosure(''); setError(''); }
+    if (e.key === 'Escape') cancelAdd();
   };
 
   const cancelAdd = () => {
     setAdding(false);
-    setNewPath('');
+    setPathSegments([]);
+    setChildrenByLevel([[]]);
+    setLeafName('');
     setNewDisclosure('');
     setNewPriority(0);
     setError('');
@@ -86,59 +141,97 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
             className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-800/60 border border-slate-700/50 rounded text-indigo-400/70 font-mono text-[11px]"
           >
             {alias}
-            <button
-              onClick={() => handleRemove(alias)}
-              disabled={removing === alias}
-              className="text-slate-600 hover:text-rose-400 transition-colors disabled:opacity-50"
-              title="Remove this alias"
-            >
-              {removing === alias ? (
-                <Loader2 size={9} className="animate-spin" />
-              ) : (
+            {confirmRemove === alias ? (
+              <span className="inline-flex items-center gap-1 ml-1">
+                <button
+                  onClick={() => { setConfirmRemove(null); handleRemove(alias); }}
+                  disabled={removing === alias}
+                  className="text-rose-400 hover:text-rose-300 text-[10px] font-medium transition-colors disabled:opacity-50"
+                >
+                  {removing === alias ? <Loader2 size={9} className="animate-spin" /> : 'yes'}
+                </button>
+                <button
+                  onClick={() => setConfirmRemove(null)}
+                  className="text-slate-500 hover:text-slate-300 text-[10px] transition-colors"
+                >
+                  no
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmRemove(alias)}
+                className="text-slate-600 hover:text-rose-400 transition-colors"
+                title="Remove this alias"
+              >
                 <X size={9} />
-              )}
-            </button>
+              </button>
+            )}
           </span>
         ))}
         {adding ? (
-          <span className="inline-flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-slate-500">{currentDomain}://</span>
-            <input
-              ref={pathInputRef}
-              type="text"
-              value={newPath}
-              onChange={e => setNewPath(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="new/path"
-              className="w-28 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
-            />
-            <input
-              type="text"
-              value={newDisclosure}
-              onChange={e => setNewDisclosure(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="disclosure..."
-              className="w-32 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] focus:outline-none focus:border-indigo-500/50"
-            />
-            <input
-              type="number" min="0"
-              value={newPriority}
-              onChange={e => setNewPriority(parseInt(e.target.value) || 0)}
-              onKeyDown={handleKeyDown}
-              className="w-14 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
-              title="priority"
-            />
-            <button
-              onClick={handleAdd}
-              disabled={saving || !newPath.trim() || !newDisclosure.trim()}
-              className="text-indigo-500 hover:text-indigo-300 transition-colors disabled:opacity-50"
-            >
-              {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-            </button>
-            <button onClick={cancelAdd} className="text-slate-600 hover:text-slate-400 transition-colors">
-              <X size={11} />
-            </button>
-          </span>
+          <div className="w-full space-y-1.5 mt-1">
+            {/* Row 1: cascading path selectors */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-slate-500">{currentDomain}://</span>
+              {childrenByLevel.map((options, level) => (
+                options.length > 0 && (
+                  <React.Fragment key={level}>
+                    {level > 0 && <span className="text-slate-600 text-[11px]">/</span>}
+                    <select
+                      value={pathSegments[level] || ''}
+                      onChange={e => handleSegmentChange(level, e.target.value)}
+                      className="px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
+                    >
+                      <option value="">{level === 0 ? '(root)' : '—'}</option>
+                      {options.map(name => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  </React.Fragment>
+                )
+              ))}
+              {loadingLevel >= 0 && <Loader2 size={9} className="animate-spin text-slate-500" />}
+              <span className="text-slate-600 text-[11px]">/</span>
+              <input
+                ref={leafInputRef}
+                type="text"
+                value={leafName}
+                onChange={e => setLeafName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="name"
+                className="w-24 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            {/* Row 2: disclosure, priority, actions (fixed position) */}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={newDisclosure}
+                onChange={e => setNewDisclosure(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="disclosure..."
+                className="w-48 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] focus:outline-none focus:border-indigo-500/50"
+              />
+              <input
+                type="number" min="0"
+                value={newPriority}
+                onChange={e => setNewPriority(parseInt(e.target.value) || 0)}
+                onKeyDown={handleKeyDown}
+                className="w-14 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
+                title="priority"
+              />
+              <button
+                onClick={handleAdd}
+                disabled={saving || !leafName.trim() || !newDisclosure.trim()}
+                className="text-indigo-500 hover:text-indigo-300 transition-colors disabled:opacity-50"
+              >
+                {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+              </button>
+              <button onClick={cancelAdd} className="text-slate-600 hover:text-slate-400 transition-colors">
+                <X size={11} />
+              </button>
+            </div>
+          </div>
         ) : (
           <button
             onClick={() => setAdding(true)}

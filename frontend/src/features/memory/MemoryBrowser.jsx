@@ -447,7 +447,7 @@ export default function MemoryBrowser() {
                                             onClick={() => handleBootToggle(currentUri)}
                                             title={bootUris.includes(currentUri) ? "Remove from Boot" : "Add to Boot"}
                                             className={clsx(
-                                                "flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-all border",
+                                                "flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-all border",
                                                 bootUris.includes(currentUri)
                                                     ? "bg-amber-950/40 border-amber-700/50 text-amber-400 hover:bg-amber-950/60 hover:border-amber-600/60 shadow-[0_0_12px_rgba(245,158,11,0.1)]"
                                                     : "bg-slate-800 border-slate-700 text-slate-500 hover:text-amber-400 hover:border-amber-800/40 hover:bg-slate-800/80"
@@ -460,7 +460,7 @@ export default function MemoryBrowser() {
                                     {!editing && (
                                         <button
                                             onClick={() => setShowCreateModal(true)}
-                                            className="flex items-center gap-2 px-4 py-2 bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-400 rounded text-sm font-medium transition-colors border border-emerald-800/40 hover:border-emerald-700/50"
+                                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-sm font-medium transition-colors border border-slate-700 hover:border-slate-600"
                                         >
                                             <Plus size={16} />
                                             Create

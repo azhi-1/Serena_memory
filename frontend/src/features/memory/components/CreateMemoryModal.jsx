@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import { createMemory } from '../../../lib/api';
 
@@ -7,9 +7,16 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState(0);
   const [disclosure, setDisclosure] = useState('');
-  const [domain, setDomain] = useState(currentDomain);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [content]);
 
   const handleCreate = async () => {
     if (!content.trim() || !disclosure.trim()) return;
@@ -22,7 +29,7 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
         priority,
         disclosure: disclosure.trim(),
         title: title.trim() || undefined,
-        domain,
+        domain: currentDomain,
       });
       onCreated(result.uri);
       // Reset form
@@ -30,7 +37,6 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
       setContent('');
       setPriority(0);
       setDisclosure('');
-      setDomain(currentDomain);
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -44,7 +50,6 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
     setContent('');
     setPriority(0);
     setDisclosure('');
-    setDomain(currentDomain);
     setError('');
     onClose();
   };
@@ -57,11 +62,11 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
       onClick={handleClose}
     >
       <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0C0C14] border border-slate-800 rounded-xl p-6 max-w-lg w-[calc(100%-2rem)] shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0C0C14] border border-slate-800 rounded-xl p-6 max-w-4xl w-[calc(100%-2rem)] shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 mb-5">
-          <div className="p-2.5 rounded-lg bg-emerald-950/40 text-emerald-400">
+          <div className="p-2.5 rounded-lg bg-indigo-950/40 text-indigo-400">
             <Plus size={20} />
           </div>
           <div>
@@ -76,54 +81,47 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
           </div>
         )}
 
-        <div className="space-y-4">
-          {/* Title */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-400 flex items-center gap-1">
-              Title <span className="text-slate-600 font-normal">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. my_memory"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
-            />
-            <p className="text-[10px] text-slate-600">alphanumeric, hyphens, underscores only</p>
-          </div>
-
-          {/* Domain */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-400">Domain</label>
-            <input
-              type="text"
-              value={domain}
-              onChange={e => setDomain(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
-            />
-          </div>
-
-          {/* Parent path (readonly) */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-400">Parent path</label>
-            <div className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-indigo-300/70 font-mono select-all">
-              {domain}://{parentPath || 'root'}
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Parent path (readonly) */}
+            <div className="space-y-1.5 md:col-span-2">
+              <label className="text-xs font-medium text-slate-400">Parent path</label>
+              <div className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-indigo-300/70 font-mono select-all">
+                {currentDomain}://{parentPath || 'root'}
+              </div>
             </div>
-          </div>
 
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-400">
-              Priority
-              <span className="text-slate-600 font-normal ml-1">(lower = higher priority)</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={priority}
-              onChange={e => setPriority(parseInt(e.target.value) || 0)}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
-            />
+            {/* Title */}
+            <div className="space-y-1.5">
+              <label className="flex items-baseline justify-between">
+                <span className="text-xs font-medium text-slate-400">
+                  Title <span className="text-slate-600 font-normal">(optional)</span>
+                </span>
+                <span className="text-[10px] text-slate-600">alphanumeric, hyphens, underscores only</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. my_memory"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
+              />
+            </div>
+
+            {/* Priority */}
+            <div className="space-y-1.5">
+              <label className="flex items-baseline justify-between">
+                <span className="text-xs font-medium text-slate-400">Priority</span>
+                <span className="text-[10px] text-slate-600">0 = highest, 5+ = low</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={priority}
+                onChange={e => setPriority(parseInt(e.target.value) || 0)}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
+              />
+            </div>
           </div>
 
           {/* Disclosure */}
@@ -141,15 +139,16 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
           </div>
 
           {/* Content */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 flex flex-col">
             <label className="text-xs font-medium text-slate-400">
               Content <span className="text-rose-400">*</span>
             </label>
             <textarea
+              ref={textareaRef}
               value={content}
               onChange={e => setContent(e.target.value)}
               placeholder="Memory content..."
-              className="w-full h-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors resize-y"
+              className="w-full min-h-[120px] bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors resize-none overflow-hidden"
               spellCheck={false}
             />
           </div>
@@ -166,7 +165,7 @@ export default function CreateMemoryModal({ isOpen, onClose, onCreated, parentPa
           <button
             onClick={handleCreate}
             disabled={saving || !content.trim() || !disclosure.trim()}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg transition-colors shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors shadow-lg shadow-indigo-900/20 disabled:opacity-50"
           >
             {saving ? (
               <>

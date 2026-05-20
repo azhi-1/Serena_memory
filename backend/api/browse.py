@@ -276,7 +276,7 @@ async def create_node(body: CreateMemoryRequest):
         raise HTTPException(status_code=422, detail="disclosure must not be empty")
 
     if body.title is not None and not re.match(r'^[a-zA-Z0-9_-]+$', body.title):
-        raise HTTPException(status_code=422, detail="title must match ^[a-zA-Z0-9_-]+$")
+        raise HTTPException(status_code=422, detail="Title can only contain letters, numbers, hyphens, and underscores")
 
     try:
         result = await graph.create_memory(
@@ -340,6 +340,12 @@ async def rename_node(body: RenameRequest):
     """
     graph = get_graph_service()
 
+    if not re.match(r'^[a-zA-Z0-9_-]+$', body.new_name):
+        raise HTTPException(
+            status_code=422,
+            detail="new_name must contain only alphanumeric characters, hyphens, and underscores",
+        )
+
     old_path = body.path
     old_uri = f"{body.domain}://{old_path}"
 
@@ -358,7 +364,7 @@ async def rename_node(body: RenameRequest):
         raise HTTPException(status_code=404, detail=f"Path not found: {old_uri}")
 
     try:
-        result = await graph.add_path(
+        await graph.add_path(
             new_path=new_path,
             target_path=old_path,
             new_domain=body.domain,
@@ -370,10 +376,19 @@ async def rename_node(body: RenameRequest):
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
+    # Remove old path. If this fails, roll back the new path to avoid
+    # leaving the node in a silent dual-path state the user won't notice.
     try:
         await graph.remove_path(old_path, body.domain, namespace=get_namespace())
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        try:
+            await graph.remove_path(new_path, body.domain, namespace=get_namespace())
+        except Exception:
+            pass  # best-effort rollback
+        raise HTTPException(
+            status_code=500,
+            detail=f"Rename partially failed: old path removal error ({e}). New path rolled back.",
+        )
 
     old_prefix = old_uri + "/"
     new_prefix = new_uri + "/"
