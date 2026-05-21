@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronRight, Home } from 'lucide-react';
 import clsx from 'clsx';
 
-const Breadcrumb = ({ items, onNavigate }) => (
+const Breadcrumb = ({ items = [], onNavigate }) => (
   <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mask-linear-fade">
     <button 
       onClick={() => onNavigate('')}

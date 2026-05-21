@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from db import get_graph_service
 from db.models import MemoryAccessLog
 from db.namespace import get_namespace
+from locales import t
+from locales.middleware import get_request_locale
 from sqlalchemy import select, func, delete
 from datetime import datetime, timedelta
 from pydantic import BaseModel
@@ -34,7 +36,7 @@ async def get_orphan_detail(memory_id: int):
     graph = get_graph_service()
     detail = await graph.get_orphan_detail(memory_id)
     if not detail:
-        raise HTTPException(status_code=404, detail=f"Memory {memory_id} not found")
+        raise HTTPException(status_code=404, detail=t("api.maintenance.memory_not_found").format(memory_id=memory_id))
     return detail
 
 
@@ -51,7 +53,10 @@ async def delete_orphan(memory_id: int):
         result = await graph.permanently_delete_memory(memory_id)
         return result
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=t("api.maintenance.graph_error", locale=locale))
     except PermissionError as e:
         raise HTTPException(status_code=409, detail=str(e))
 

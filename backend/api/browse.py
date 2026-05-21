@@ -12,6 +12,8 @@ import config
 from db import get_graph_service, get_glossary_service, get_db_manager, get_search_indexer
 from db.models import Path as PathModel, Edge as EdgeModel, ROOT_NODE_UUID
 from db.namespace import get_namespace
+from locales import t
+from locales.middleware import get_request_locale
 from sqlalchemy import select, distinct
 import re
 
@@ -141,7 +143,7 @@ async def get_node(
         memory = await graph.get_memory_by_path(path, domain=domain, namespace=get_namespace())
         
         if not memory:
-            raise HTTPException(status_code=404, detail=f"Path not found: {domain}://{path}")
+            raise HTTPException(status_code=404, detail=t("api.browse.path_not_found").format(uri=f"{domain}://{path}"))
         
         children_raw = await graph.get_children(
             memory["node_uuid"],
@@ -245,7 +247,7 @@ async def update_node(
     # Check exists
     memory = await graph.get_memory_by_path(path, domain=domain, namespace=get_namespace())
     if not memory:
-        raise HTTPException(status_code=404, detail=f"Path not found: {domain}://{path}")
+        raise HTTPException(status_code=404, detail=t("api.browse.path_not_found").format(uri=f"{domain}://{path}"))
     
     # Update (creates new version if content changed, updates path metadata otherwise)
     try:
@@ -258,7 +260,10 @@ async def update_node(
             namespace=get_namespace(),
         )
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.graph_error", locale=locale))
     
     return {"success": True, "memory_id": result["new_memory_id"]}
 
@@ -273,10 +278,10 @@ async def create_node(body: CreateMemoryRequest):
     graph = get_graph_service()
 
     if not body.disclosure:
-        raise HTTPException(status_code=422, detail="disclosure must not be empty")
+        raise HTTPException(status_code=422, detail=t("api.browse.disclosure_empty"))
 
     if body.title is not None and not re.match(r'^[a-zA-Z0-9_-]+$', body.title):
-        raise HTTPException(status_code=422, detail="Title can only contain letters, numbers, hyphens, and underscores")
+        raise HTTPException(status_code=422, detail=t("api.browse.invalid_title"))
 
     try:
         result = await graph.create_memory(
@@ -289,7 +294,10 @@ async def create_node(body: CreateMemoryRequest):
             namespace=get_namespace(),
         )
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.graph_error", locale=locale))
 
     return {"success": True, "uri": result["uri"], "memory_id": result["id"]}
 
@@ -304,7 +312,7 @@ async def create_alias(body: CreateAliasRequest):
     graph = get_graph_service()
 
     if not body.disclosure:
-        raise HTTPException(status_code=422, detail="disclosure must not be empty")
+        raise HTTPException(status_code=422, detail=t("api.browse.disclosure_empty"))
 
     try:
         await graph.add_path(
@@ -317,7 +325,10 @@ async def create_alias(body: CreateAliasRequest):
             namespace=get_namespace(),
         )
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.graph_error", locale=locale))
 
     return {"success": True, "uri": f"{body.new_domain}://{body.new_path}"}
 
@@ -343,7 +354,7 @@ async def rename_node(body: RenameRequest):
     if not re.match(r'^[a-zA-Z0-9_-]+$', body.new_name):
         raise HTTPException(
             status_code=422,
-            detail="new_name must contain only alphanumeric characters, hyphens, and underscores",
+            detail=t("api.browse.invalid_name"),
         )
 
     old_path = body.path
@@ -361,7 +372,7 @@ async def rename_node(body: RenameRequest):
 
     memory = await graph.get_memory_by_path(old_path, domain=body.domain, namespace=get_namespace())
     if not memory:
-        raise HTTPException(status_code=404, detail=f"Path not found: {old_uri}")
+        raise HTTPException(status_code=404, detail=t("api.browse.path_not_found").format(uri=old_uri))
 
     try:
         await graph.add_path(
@@ -374,7 +385,10 @@ async def rename_node(body: RenameRequest):
             namespace=get_namespace(),
         )
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.graph_error", locale=locale))
 
     # Remove old path. If this fails, roll back the new path to avoid
     # leaving the node in a silent dual-path state the user won't notice.
@@ -387,7 +401,7 @@ async def rename_node(body: RenameRequest):
             pass  # best-effort rollback
         raise HTTPException(
             status_code=500,
-            detail=f"Rename partially failed: old path removal error ({e}). New path rolled back.",
+            detail=t("api.browse.rename_partial_failure").format(error=e),
         )
 
     old_prefix = old_uri + "/"
@@ -438,7 +452,10 @@ async def add_glossary_keyword(body: GlossaryAdd):
         result = await glossary.add_glossary_keyword(body.keyword, body.node_uuid, namespace=get_namespace())
         return {"success": True, **result}
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.glossary_error", locale=locale))
 
 
 @router.delete("/glossary")
@@ -449,7 +466,7 @@ async def remove_glossary_keyword(body: GlossaryRemove):
     glossary = get_glossary_service()
     result = await glossary.remove_glossary_keyword(body.keyword, body.node_uuid, namespace=get_namespace())
     if not result.get("success"):
-        raise HTTPException(status_code=404, detail="Keyword binding not found")
+        raise HTTPException(status_code=404, detail=t("api.browse.keyword_not_found"))
     return {"success": True}
 
 
@@ -473,12 +490,15 @@ async def delete_node(
 
     memory = await graph.get_memory_by_path(path, domain=domain, namespace=get_namespace())
     if not memory:
-        raise HTTPException(status_code=404, detail=f"Path not found: {domain}://{path}")
+        raise HTTPException(status_code=404, detail=t("api.browse.path_not_found").format(uri=f"{domain}://{path}"))
 
     try:
         await graph.remove_path(path, domain, namespace=get_namespace())
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(status_code=422, detail=str(e))
+        raise HTTPException(status_code=422, detail=t("api.browse.graph_error", locale=locale))
 
     deleted_uri = f"{domain}://{path}"
     subtree_prefix = deleted_uri + "/"

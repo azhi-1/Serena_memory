@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 import config
 from db.namespace import get_namespace
+from locales import t
 
 _IN_DOCKER = Path("/.dockerenv").exists()
 
@@ -29,6 +30,7 @@ class SettingsUpdate(BaseModel):
     api_token: str | None = None
     cors_origins: str | None = None
     public_readonly_mcp: bool | None = None
+    locale: str | None = None
 
 
 class BootUriUpdate(BaseModel):
@@ -77,20 +79,20 @@ async def update_settings(body: SettingsUpdate):
         if locked:
             raise HTTPException(
                 status_code=422,
-                detail=f"Cannot change {', '.join(sorted(locked))} in Docker — these are managed by docker-compose.yml and nginx.conf.",
+                detail=t("api.settings.docker_locked_fields").format(fields=', '.join(sorted(locked))),
             )
 
     if "web_port" in fields:
         port = fields["web_port"]
         if not (1 <= port <= 65535):
-            raise HTTPException(status_code=422, detail=f"Invalid port {port}. Must be between 1 and 65535.")
+            raise HTTPException(status_code=422, detail=t("api.settings.invalid_port").format(port=port))
 
     if "api_token" in fields:
         token = fields["api_token"]
         if token and len(token) < 32:
             raise HTTPException(
                 status_code=422,
-                detail=f"api_token is too short ({len(token)} chars). Use at least 32 characters, or omit to keep the existing token.",
+                detail=t("api.settings.token_too_short").format(len=len(token)),
             )
 
     pending_host = fields.get("host", config.get("host"))
@@ -98,7 +100,7 @@ async def update_settings(body: SettingsUpdate):
     if pending_host not in ("127.0.0.1", "localhost", "::1") and not pending_token:
         raise HTTPException(
             status_code=422,
-            detail="API token is required when host is network-reachable. Set an API token (min 32 chars) or keep host as 127.0.0.1.",
+            detail=t("api.settings.token_required"),
         )
 
     for field_name, value in fields.items():
@@ -132,7 +134,7 @@ async def set_boot_uris(body: BootUriUpdate):
 
     for uri in body.uris:
         if not _URI_RE.match(uri):
-            raise HTTPException(status_code=422, detail=f"Invalid URI format: {uri}")
+            raise HTTPException(status_code=422, detail=t("api.settings.invalid_uri_format").format(uri=uri))
 
     config.set_boot_uris(body.uris, ns)
     return {"success": True, "uris": body.uris}
@@ -150,9 +152,9 @@ async def toggle_boot_uri(body: BootUriToggle):
     current = config.get_boot_uris(ns)
     uri = body.uri.strip()
     if not uri:
-        raise HTTPException(status_code=422, detail="URI cannot be empty")
+        raise HTTPException(status_code=422, detail=t("api.settings.uri_empty"))
     if not _URI_RE.match(uri):
-        raise HTTPException(status_code=422, detail="Invalid URI format")
+        raise HTTPException(status_code=422, detail=t("api.settings.invalid_uri_format_bare"))
 
     if body.enabled:
         if uri not in current:
@@ -184,7 +186,7 @@ async def set_boot_uris_for_ns(namespace: str, body: BootUriUpdate):
     ns = _resolve_ns(namespace)
     for uri in body.uris:
         if not _URI_RE.match(uri):
-            raise HTTPException(status_code=422, detail=f"Invalid URI format: {uri}")
+            raise HTTPException(status_code=422, detail=t("api.settings.invalid_uri_format").format(uri=uri))
     config.set_boot_uris(body.uris, ns)
     return {"success": True, "namespace": ns, "uris": body.uris}
 
@@ -194,9 +196,9 @@ async def delete_boot_uris_for_ns(namespace: str):
     """Remove a namespace override so it falls back to default."""
     ns = _resolve_ns(namespace)
     if ns == "":
-        raise HTTPException(status_code=400, detail="Cannot delete the default namespace")
+        raise HTTPException(status_code=400, detail=t("api.settings.cannot_delete_default_ns"))
     if not config.delete_boot_uris(ns):
-        raise HTTPException(status_code=404, detail=f"No boot URI override for namespace '{ns}'")
+        raise HTTPException(status_code=404, detail=t("api.settings.no_boot_uri_override").format(ns=ns))
     return {"success": True, "namespace": namespace}
 
 
@@ -244,7 +246,7 @@ async def test_database(body: DatabaseTest):
     if not any(url.startswith(s + "://") for s in _ALLOWED_DB_SCHEMES):
         raise HTTPException(
             status_code=422,
-            detail=f"Unsupported scheme. Allowed: {', '.join(_ALLOWED_DB_SCHEMES)}",
+            detail=t("api.settings.unsupported_scheme").format(schemes=', '.join(_ALLOWED_DB_SCHEMES)),
         )
 
     try:
@@ -252,9 +254,9 @@ async def test_database(body: DatabaseTest):
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         await engine.dispose()
-        return {"success": True, "message": "Connection successful"}
+        return {"success": True, "message": t("api.settings.db_connected")}
     except Exception as e:
-        return {"success": False, "message": str(e)}
+        return {"success": False, "message": t("api.settings.db_failed").format(error=e)}
 
 
 @router.post("/database/create")
@@ -263,7 +265,7 @@ async def create_database(body: DatabaseCreate):
     db_path = Path(body.path).resolve()
 
     if db_path.exists():
-        raise HTTPException(status_code=409, detail="File already exists")
+        raise HTTPException(status_code=409, detail=t("api.settings.file_exists"))
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -274,7 +276,7 @@ async def create_database(body: DatabaseCreate):
         await mgr.init_db()
         await mgr.close()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create database: {e}")
+        raise HTTPException(status_code=500, detail=t("api.settings.db_create_failed").format(error=e))
 
     return {
         "success": True,
@@ -293,22 +295,22 @@ async def open_database_folder():
     if Path("/.dockerenv").exists():
         raise HTTPException(
             status_code=501,
-            detail="Open folder is not available in Docker deployments. Access the file via the mounted volume on the host.",
+            detail=t("api.settings.open_folder_docker"),
         )
 
     url = config.get("database_url") or ""
     if "sqlite" not in url:
-        raise HTTPException(status_code=400, detail="Only available for SQLite databases")
+        raise HTTPException(status_code=400, detail=t("api.settings.sqlite_only"))
 
     match = re.search(r"///(.+)$", url)
     if not match:
-        raise HTTPException(status_code=400, detail="Could not parse database path from URL")
+        raise HTTPException(status_code=400, detail=t("api.settings.parse_path_failed"))
 
     db_path = Path(match.group(1)).resolve()
     folder = db_path.parent if db_path.is_file() else db_path
 
     if not folder.exists():
-        raise HTTPException(status_code=404, detail=f"Folder does not exist: {folder}")
+        raise HTTPException(status_code=404, detail=t("api.settings.folder_not_found").format(path=folder))
 
     system = platform.system()
     if system == "Windows":

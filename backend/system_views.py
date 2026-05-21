@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from db import get_graph_service, get_glossary_service
 from db.namespace import get_namespace
+from locales import t
 
 
 async def fetch_and_format_memory(uri: str, track_access: bool = False) -> str:
@@ -31,7 +32,8 @@ async def fetch_and_format_memory(uri: str, track_access: bool = False) -> str:
     memory = await graph.get_memory_by_path(path, domain, namespace=get_namespace())
 
     if not memory:
-        raise ValueError(f"URI '{make_uri(domain, path)}' not found.")
+        raise ValueError(t("system.uri_not_found").format(
+            uri=make_uri(domain, path)))
 
     if track_access and memory.get("node_uuid"):
         asyncio.create_task(
@@ -291,7 +293,7 @@ async def generate_memory_index_view(domain_filter: Optional[str] = None) -> str
         return "\n".join(lines)
 
     except Exception as e:
-        return f"Error generating index: {str(e)}"
+        return t("system.error_index").format(error=str(e))
 
 
 async def generate_recent_memories_view(limit: int = 10) -> str:
@@ -341,7 +343,7 @@ async def generate_recent_memories_view(limit: int = 10) -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"Error generating recent memories view: {str(e)}"
+        return t("system.error_recent").format(error=str(e))
 
 
 async def generate_glossary_index_view() -> str:
@@ -389,7 +391,7 @@ async def generate_glossary_index_view() -> str:
         return "\n".join(lines)
 
     except Exception as e:
-        return f"Error generating glossary index: {str(e)}"
+        return t("system.error_glossary").format(error=str(e))
 
 
 async def generate_diagnostic_view(domain: str, days_stale: int = 30, max_children: int = 10) -> str:
@@ -496,4 +498,4 @@ async def generate_diagnostic_view(domain: str, days_stale: int = 30, max_childr
         return "\n".join(lines).strip()
 
     except Exception as e:
-        return f"Error generating diagnostic view: {str(e)}"
+        return t("system.error_diagnostic").format(error=str(e))

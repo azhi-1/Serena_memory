@@ -5,12 +5,19 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import DiffViewer from '../../components/DiffViewer';
+import { toast } from '../../components/Toast';
+import ConfirmModal from '../../components/ConfirmModal';
+import PromptModal from '../../components/PromptModal';
 import { api } from '../../lib/api';
+import { useLocale } from '../../i18n/useLocale';
 
 export default function MaintenancePage() {
+  const { t } = useLocale();
   const [orphans, setOrphans] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
+  const [promptState, setPromptState] = useState(null);
 
   // Expand / detail
   const [expandedId, setExpandedId] = useState(null);
@@ -38,22 +45,31 @@ export default function MaintenancePage() {
     }
   };
 
-  const handleClearLogs = async () => {
-    const daysStr = window.prompt("Keep logs for how many days? (Enter 0 to clear all logs)", "30");
-    if (daysStr === null) return;
-    const days = parseInt(daysStr, 10);
-    if (isNaN(days) || days < 0) return;
+  const handleClearLogs = () => {
+    setPromptState({
+      title: t('maintenance.prompt.clear_logs_title'),
+      message: t('maintenance.prompt.clear_logs_message'),
+      defaultValue: "30",
+      placeholder: "30",
+      submitLabel: t('maintenance.prompt.clear_logs_label'),
+      onSubmit: async (daysStr) => {
+        setPromptState(null);
+        const days = parseInt(daysStr, 10);
+        if (isNaN(days) || days < 0) return;
 
-    setClearingLogs(true);
-    try {
-      const res = await api.delete('/maintenance/access-logs', { data: { keep_days: days } });
-      alert(`Cleared ${res.data.deleted} log entries.`);
-      loadStats();
-    } catch (err) {
-      alert("Failed to clear logs: " + (err.response?.data?.detail || err.message));
-    } finally {
-      setClearingLogs(false);
-    }
+        setClearingLogs(true);
+        try {
+          const res = await api.delete('/maintenance/access-logs', { data: { keep_days: days } });
+          toast(t('maintenance.toast.logs_cleared', { count: res.data.deleted }), "success");
+          loadStats();
+        } catch (err) {
+          toast(t('maintenance.toast.clear_logs_failed', { error: (err.response?.data?.detail || err.message) }), "error");
+        } finally {
+          setClearingLogs(false);
+        }
+      },
+      onCancel: () => setPromptState(null),
+    });
   };
 
   const loadOrphans = async () => {
@@ -62,9 +78,9 @@ export default function MaintenancePage() {
     setSelectedIds(new Set());
     try {
       const res = await api.get('/maintenance/orphans');
-      setOrphans(res.data);
+      setOrphans(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      setError("Failed to load orphans: " + (err.response?.data?.detail || err.message));
+      setError(t('maintenance.error.load_orphans_failed', { error: (err.response?.data?.detail || err.message) }));
     } finally {
       setLoading(false);
     }
@@ -97,37 +113,45 @@ export default function MaintenancePage() {
   }, []);
 
   // Batch delete
-  const handleBatchDelete = async () => {
+  const handleBatchDelete = () => {
     const count = selectedIds.size;
     if (count === 0) return;
-    if (!confirm(`Permanently delete ${count} memories? This cannot be undone.`)) return;
+    setConfirmState({
+      title: t('maintenance.confirm.delete_title'),
+      message: t('maintenance.confirm.delete_message', { count: count }),
+      variant: "danger",
+      confirmLabel: t('maintenance.confirm.delete_label'),
+      onConfirm: async () => {
+        setConfirmState(null);
+        setBatchDeleting(true);
+        const toDelete = [...selectedIds];
+        let failed = [];
 
-    setBatchDeleting(true);
-    const toDelete = [...selectedIds];
-    let failed = [];
+        for (const id of toDelete) {
+          try {
+            await api.delete(`/maintenance/orphans/${id}`);
+          } catch {
+            failed.push(id);
+          }
+        }
 
-    for (const id of toDelete) {
-      try {
-        await api.delete(`/maintenance/orphans/${id}`);
-      } catch {
-        failed.push(id);
-      }
-    }
+        // Remove successfully deleted from list
+        const failedSet = new Set(failed);
+        setOrphans(prev => prev.filter(item => !toDelete.includes(item.id) || failedSet.has(item.id)));
+        setSelectedIds(new Set(failed));
 
-    // Remove successfully deleted from list
-    const failedSet = new Set(failed);
-    setOrphans(prev => prev.filter(item => !toDelete.includes(item.id) || failedSet.has(item.id)));
-    setSelectedIds(new Set(failed));
+        if (expandedId && toDelete.includes(expandedId) && !failedSet.has(expandedId)) {
+          setExpandedId(null);
+        }
 
-    if (expandedId && toDelete.includes(expandedId) && !failedSet.has(expandedId)) {
-      setExpandedId(null);
-    }
+        if (failed.length > 0) {
+          toast(t('maintenance.toast.partial_delete_failed', { failed: failed.length, total: count, ids: failed.join(', ') }), "error");
+        }
 
-    if (failed.length > 0) {
-      alert(`${failed.length} of ${count} deletions failed. Failed IDs: ${failed.join(', ')}`);
-    }
-
-    setBatchDeleting(false);
+        setBatchDeleting(false);
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
   // Expand card
@@ -188,11 +212,11 @@ export default function MaintenancePage() {
               </span>
               {item.category === 'deprecated' ? (
                 <span className="text-[10px] font-mono text-amber-300 bg-amber-900/40 px-1.5 py-0.5 rounded flex items-center gap-1">
-                  <Archive size={9} /> deprecated
+                  <Archive size={9} /> {t('maintenance.badge.deprecated')}
                 </span>
               ) : (
                 <span className="text-[10px] font-mono text-rose-300 bg-rose-900/40 px-1.5 py-0.5 rounded flex items-center gap-1">
-                  <Unlink size={9} /> orphaned
+                  <Unlink size={9} /> {t('maintenance.badge.orphaned')}
                 </span>
               )}
               {item.migrated_to && (
@@ -201,7 +225,7 @@ export default function MaintenancePage() {
                 </span>
               )}
               <span className="text-[11px] text-slate-500">
-                {item.created_at ? format(new Date(item.created_at), 'yyyy-MM-dd HH:mm') : 'Unknown'}
+                {item.created_at ? format(new Date(item.created_at), 'yyyy-MM-dd HH:mm') : t('maintenance.badge.unknown_date')}
               </span>
             </div>
 
@@ -220,7 +244,7 @@ export default function MaintenancePage() {
               <div className="flex items-center gap-1.5 mb-2">
                 <ArrowRight size={12} className="text-slate-500 flex-shrink-0" />
                 <span className="text-[11px] text-slate-500 italic">
-                  target #{item.migration_target.id} also has no paths
+                  {t('maintenance.detail.target_no_paths', { id: item.migration_target.id })}
                 </span>
               </div>
             )}
@@ -243,16 +267,16 @@ export default function MaintenancePage() {
             {isLoadingDetail ? (
               <div className="flex items-center gap-3 text-slate-500 py-4">
                 <div className="w-4 h-4 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                <span className="text-xs">Loading full content...</span>
+                <span className="text-xs">{t('maintenance.detail.loading')}</span>
               </div>
             ) : detail?.error ? (
-              <div className="text-rose-400 text-xs py-2">Error: {detail.error}</div>
+              <div className="text-rose-400 text-xs py-2">{t('maintenance.detail.error_prefix', { error: detail.error })}</div>
             ) : detail ? (
               <div className="space-y-4">
                 {/* Full content */}
                 <div>
                   <h4 className="text-[11px] uppercase tracking-widest text-slate-500 mb-2 font-semibold">
-                    {detail.migration_target ? 'Old Version (This Memory)' : 'Full Content'}
+                    {detail.migration_target ? t('maintenance.detail.old_version') : t('maintenance.detail.full_content')}
                   </h4>
                   <div className="bg-[#060610] rounded p-4 border border-slate-800/60 text-[12px] text-slate-300 font-mono leading-relaxed whitespace-pre-wrap max-h-64 overflow-y-auto custom-scrollbar">
                     {detail.content}
@@ -263,7 +287,7 @@ export default function MaintenancePage() {
                 {detail.migration_target && (
                   <div>
                     <h4 className="text-[11px] uppercase tracking-widest text-slate-500 mb-2 font-semibold flex items-center gap-2">
-                      <span>Diff: #{item.id} → #{detail.migration_target.id}</span>
+                      <span>{t('maintenance.detail.diff_header', { fromId: item.id, toId: detail.migration_target.id })}</span>
                       {detail.migration_target.paths.length > 0 && (
                         <span className="text-indigo-400/70 normal-case tracking-normal font-normal">
                           ({detail.migration_target.paths[0]})
@@ -296,7 +320,7 @@ export default function MaintenancePage() {
         <button
           onClick={() => toggleSelectAll(items)}
           className="p-0.5 rounded transition-colors hover:bg-slate-700/30"
-          title={allSelected ? "Deselect all" : "Select all"}
+          title={allSelected ? t('maintenance.select.deselect_all') : t('maintenance.select.select_all')}
         >
           {allSelected ? (
             <CheckSquare size={16} className={color} />
@@ -325,38 +349,37 @@ export default function MaintenancePage() {
           <div className="w-12 h-12 bg-amber-950/30 rounded-xl flex items-center justify-center border border-amber-800/30 mb-4 shadow-[0_0_20px_rgba(245,158,11,0.1)]">
             <Sparkles className="text-amber-400" size={24} />
           </div>
-          <h1 className="text-xl font-bold text-slate-100 mb-2">Brain Cleanup</h1>
+          <h1 className="text-xl font-bold text-slate-100 mb-2">{t('maintenance.header.title')}</h1>
           <p className="text-[12px] text-slate-400 leading-relaxed">
-            Find and clean up orphan memories — deprecated versions from updates
-            and unreachable memories from path deletions.
+            {t('maintenance.header.subtitle')}
           </p>
         </div>
 
         <div className="space-y-3 mt-auto">
           <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700/40">
-            <div className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Deprecated</div>
+            <div className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">{t('maintenance.stats.deprecated_label')}</div>
             <div className="text-3xl font-mono text-amber-400">{deprecated.length}</div>
-            <div className="text-slate-500 text-[11px] mt-1">old versions from updates</div>
+            <div className="text-slate-500 text-[11px] mt-1">{t('maintenance.stats.deprecated_desc')}</div>
           </div>
           <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700/40">
-            <div className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">Orphaned</div>
+            <div className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1">{t('maintenance.stats.orphaned_label')}</div>
             <div className="text-3xl font-mono text-rose-400">{orphaned.length}</div>
-            <div className="text-slate-500 text-[11px] mt-1">unreachable (no paths)</div>
+            <div className="text-slate-500 text-[11px] mt-1">{t('maintenance.stats.orphaned_desc')}</div>
           </div>
           <div className="bg-slate-800/40 rounded-lg p-4 border border-slate-700/40 mt-6 relative">
             <div className="text-slate-400 text-xs uppercase font-bold tracking-wider mb-1 flex justify-between items-center">
-              Access Logs
+              {t('maintenance.stats.access_logs_label')}
               <button 
                 onClick={handleClearLogs}
                 disabled={clearingLogs}
                 className="text-xs text-rose-400 hover:text-rose-300 disabled:opacity-50"
               >
-                {clearingLogs ? "Clearing..." : "Clear"}
+                {clearingLogs ? t('maintenance.stats.clearing') : t('maintenance.stats.clear_button')}
               </button>
             </div>
             <div className="text-3xl font-mono text-indigo-400">{logStats.count}</div>
             <div className="text-slate-500 text-[11px] mt-1">
-              {logStats.oldest ? `Oldest: ${format(new Date(logStats.oldest), 'MM-dd HH:mm')}` : "No records"}
+              {logStats.oldest ? t('maintenance.stats.oldest', { date: format(new Date(logStats.oldest), 'MM-dd HH:mm') }) : t('maintenance.stats.no_records')}
             </div>
           </div>
         </div>
@@ -367,7 +390,7 @@ export default function MaintenancePage() {
         {/* Header with batch actions */}
         <div className="h-14 flex items-center justify-between px-8 border-b border-slate-700/30 bg-[#07070D]/90 backdrop-blur-md sticky top-0 z-10">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest flex items-center gap-2">
-            <Trash2 size={14} /> Orphan Memories
+            <Trash2 size={14} /> {t('maintenance.list.header')}
           </h2>
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (
@@ -381,13 +404,13 @@ export default function MaintenancePage() {
                 ) : (
                   <Trash2 size={13} />
                 )}
-                Delete {selectedIds.size} selected
+                {t('maintenance.list.delete_selected', { count: selectedIds.size })}
               </button>
             )}
             <button
               onClick={loadOrphans}
               className="p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-700/40 rounded-full transition-all"
-              title="Refresh"
+              title={t('maintenance.list.refresh')}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </button>
@@ -399,21 +422,21 @@ export default function MaintenancePage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-64 text-slate-500 gap-4">
               <div className="w-6 h-6 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin"></div>
-              <span className="text-xs tracking-widest uppercase">Scanning for orphans...</span>
+              <span className="text-xs tracking-widest uppercase">{t('maintenance.list.scanning')}</span>
             </div>
           ) : error ? (
             <div className="text-rose-400 bg-rose-950/20 border border-rose-800/40 p-6 rounded-lg flex items-center gap-4">
               <AlertTriangle size={24} />
               <div>
-                <h3 className="font-bold text-rose-300">Error</h3>
+                <h3 className="font-bold text-rose-300">{t('maintenance.list.error_title')}</h3>
                 <p className="text-sm text-rose-400/80">{error}</p>
               </div>
             </div>
           ) : orphans.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-6 select-none">
               <Sparkles size={64} className="opacity-30" />
-              <p className="text-lg font-light text-slate-500">System Clean</p>
-              <p className="text-xs uppercase tracking-widest text-slate-600">No orphan memories detected</p>
+              <p className="text-lg font-light text-slate-500">{t('maintenance.list.empty_title')}</p>
+              <p className="text-xs uppercase tracking-widest text-slate-600">{t('maintenance.list.empty_desc')}</p>
             </div>
           ) : (
             <div className="max-w-5xl mx-auto space-y-8">
@@ -422,7 +445,7 @@ export default function MaintenancePage() {
                 <section>
                   {renderSectionHeader(
                     <Archive size={16} className="text-amber-400/80" />,
-                    "Deprecated Versions",
+                    t('maintenance.section.deprecated_versions'),
                     "text-amber-400/80",
                     deprecated
                   )}
@@ -437,7 +460,7 @@ export default function MaintenancePage() {
                 <section>
                   {renderSectionHeader(
                     <Unlink size={16} className="text-rose-400/80" />,
-                    "Orphaned Memories",
+                    t('maintenance.section.orphaned_memories'),
                     "text-rose-400/80",
                     orphaned
                   )}
@@ -450,6 +473,8 @@ export default function MaintenancePage() {
           )}
         </div>
       </div>
+      {confirmState && <ConfirmModal {...confirmState} />}
+      {promptState && <PromptModal {...promptState} />}
     </div>
   );
 }

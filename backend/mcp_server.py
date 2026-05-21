@@ -52,6 +52,7 @@ from system_views import (
     generate_diagnostic_view,
 )
 import contextlib
+from locales import t
 
 
 
@@ -76,6 +77,7 @@ def build_web_app(*, extra_routes=None, extra_prefixes=None, lifespan=None):
     from starlette.types import ASGIApp, Receive, Scope, Send
     from auth import BearerTokenAuthMiddleware, get_cors_config
     from namespace_middleware import NamespaceMiddleware
+    from locales.middleware import LocaleMiddleware
     from api import review_router, browse_router, maintenance_router, settings_router
     from health import router as health_router, health_check
     from config import ConfigWriteError
@@ -111,7 +113,9 @@ def build_web_app(*, extra_routes=None, extra_prefixes=None, lifespan=None):
 
     inner = Starlette(routes=routes, lifespan=lifespan)
     authed = NamespaceMiddleware(
-        BearerTokenAuthMiddleware(inner, excluded_paths=["/api/health", "/health"])
+        LocaleMiddleware(
+            BearerTokenAuthMiddleware(inner, excluded_paths=["/api/health", "/health"])
+        )
     )
     cors_authed = CORSMiddleware(
         authed,
@@ -174,28 +178,20 @@ async def _ensure_frontend_built():
     if os.environ.get("SKIP_FRONTEND_BUILD", "").lower() in ("true", "1", "yes"):
         return
     if not shutil.which("npm"):
-        print(
-            "[Nocturne] Admin UI not built and npm not found. "
-            "Install Node.js or build manually: "
-            "cd frontend && npm install && npm run build",
-            file=sys.stderr,
-        )
+        print(t("startup.npm_not_found"), file=sys.stderr)
         return
 
-    print(
-        "[Nocturne] First run — building Admin UI (this may take a minute)...",
-        file=sys.stderr,
-    )
+    print(t("startup.building"), file=sys.stderr)
     try:
         steps = [
-            ("Installing dependencies", "npm install --no-fund --no-audit"),
-            ("Compiling", "npm run build"),
+            (t("startup.installing_deps"), "npm install --no-fund --no-audit"),
+            (t("startup.compiling"), "npm run build"),
         ]
         if (FRONTEND_SRC / "node_modules").is_dir():
             steps = steps[1:]
 
         for label, cmd in steps:
-            print(f"  {label}...", file=sys.stderr)
+            print(t("startup.step_progress").format(label=label), file=sys.stderr)
             result = await asyncio.to_thread(
                 subprocess.run,
                 cmd,
@@ -207,16 +203,16 @@ async def _ensure_frontend_built():
             if result.returncode != 0:
                 err = result.stderr.strip() or result.stdout.strip()
                 print(
-                    f"[Nocturne] '{cmd}' failed (exit {result.returncode}):\n{err}",
+                    t("startup.build_failed").format(
+                        cmd=cmd, exit_code=result.returncode, error_msg=err),
                     file=sys.stderr,
                 )
                 return
 
-        print("[Nocturne] Admin UI ready.", file=sys.stderr)
+        print(t("startup.admin_ready"), file=sys.stderr)
     except Exception as e:
         print(
-            f"[Nocturne] Auto-build failed: {e}\n"
-            "  Build manually: cd frontend && npm install && npm run build",
+            t("startup.build_error").format(error=str(e)),
             file=sys.stderr,
         )
 
@@ -256,13 +252,13 @@ async def lifespan(server: FastMCP):
                 except Exception as e:
                     # Ignore the raw error message (usually OSError for address in use)
                     # and print a user-friendly explanation.
-                    print(f"\n[Nocturne] Notice: Admin UI skipped (Port {port} in use).", file=sys.stderr)
-                    print(f"[Nocturne] This is expected if another MCP instance is already providing the UI.", file=sys.stderr)
-                    print(f"[Nocturne] The MCP server itself will continue to operate normally.", file=sys.stderr)
+                    print(t("startup.port_in_use").format(port=port), file=sys.stderr)
+                    print(t("startup.port_in_use_expected"), file=sys.stderr)
+                    print(t("startup.port_in_use_mcp_ok"), file=sys.stderr)
                 except SystemExit:
-                    print(f"\n[Nocturne] Notice: Admin UI skipped (Port {port} in use).", file=sys.stderr)
-                    print(f"[Nocturne] This is expected if another MCP instance is already providing the UI.", file=sys.stderr)
-                    print(f"[Nocturne] The MCP server itself will continue to operate normally.", file=sys.stderr)
+                    print(t("startup.port_in_use").format(port=port), file=sys.stderr)
+                    print(t("startup.port_in_use_expected"), file=sys.stderr)
+                    print(t("startup.port_in_use_mcp_ok"), file=sys.stderr)
 
             web_task = asyncio.create_task(_serve_ui())
             ui = f"http://localhost:{port}/"

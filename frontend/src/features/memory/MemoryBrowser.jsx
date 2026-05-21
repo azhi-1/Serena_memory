@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { api, getSettingsBootUris, toggleSettingsBootUri, deleteNode, searchMemories, createMemory } from '../../lib/api';
+import { toast } from '../../components/Toast';
+import { useLocale } from '../../i18n/useLocale';
 import { renameNode } from '../../lib/api';
 import CreateMemoryModal from './components/CreateMemoryModal';
 import AliasManager from './components/AliasManager';
@@ -81,6 +83,7 @@ export default function MemoryBrowser() {
   const [searching, setSearching] = useState(false);
   const searchTimeoutRef = useRef(null);
   const searchSeqRef = useRef(0);
+  const { t } = useLocale();
 
   const currentRouteRef = useRef({ domain, path });
   useEffect(() => {
@@ -88,7 +91,7 @@ export default function MemoryBrowser() {
   }, [domain, path]);
 
   useEffect(() => {
-    api.get('/browse/domains').then(res => setDomains(res.data)).catch(() => {});
+    api.get('/browse/domains').then(res => setDomains(Array.isArray(res.data) ? res.data : [])).catch(() => {});
     getSettingsBootUris().then(res => setBootUris(res.uris)).catch(() => {});
   }, []);
 
@@ -102,7 +105,7 @@ export default function MemoryBrowser() {
         if (shouldRedirectAfterNamespaceSwitch) {
           const domainsRes = await api.get('/browse/domains');
           const rootDomain = chooseRootDomain(domainsRes.data, domain);
-          setDomains(domainsRes.data);
+          setDomains(Array.isArray(domainsRes.data) ? domainsRes.data : []);
           if (rootDomain && (path || rootDomain !== domain)) {
             setSearchParams({ domain: rootDomain }, { replace: true });
             return;
@@ -110,7 +113,7 @@ export default function MemoryBrowser() {
         }
 
         const res = await api.get('/browse/node', { params: { domain, path } });
-        setData(res.data);
+        setData({ node: null, children: [], breadcrumbs: [], ...(res.data || {}) });
         setEditContent(res.data.node?.content || '');
         setEditDisclosure(res.data.node?.disclosure || '');
         setEditPriority(res.data.node?.priority ?? 0);
@@ -191,7 +194,7 @@ export default function MemoryBrowser() {
         setEditing(false);
       }
     } catch (err) {
-      alert('Save failed: ' + err.message);
+      toast(t('memory.toast.save_failed', { error: err.message }), "error");
     } finally {
       setSaving(false);
     }
@@ -216,7 +219,7 @@ export default function MemoryBrowser() {
       const parentPath = deleteTarget.path.includes('/') ? deleteTarget.path.substring(0, deleteTarget.path.lastIndexOf('/')) : '';
       navigateTo(parentPath, deleteTarget.domain);
     } catch (err) {
-      alert('Delete failed: ' + (err.response?.data?.detail || err.message));
+      toast(t('memory.toast.delete_failed', { error: err.response?.data?.detail || err.message }), "error");
     } finally {
       setDeleting(false);
     }
@@ -243,7 +246,7 @@ export default function MemoryBrowser() {
       try {
         const res = await searchMemories(query.trim());
         if (seq !== searchSeqRef.current) return;
-        setSearchResults(res.results);
+        setSearchResults(Array.isArray(res.results) ? res.results : []);
       } catch {
         if (seq !== searchSeqRef.current) return;
         setSearchResults([]);
@@ -273,14 +276,14 @@ export default function MemoryBrowser() {
         <div className="p-5 border-b border-slate-800/30">
           <div className="flex items-center gap-2 text-indigo-400 mb-1">
             <Cpu size={18} />
-            <h1 className="font-bold tracking-tight text-sm text-slate-100">Memory Core</h1>
+            <h1 className="font-bold tracking-tight text-sm text-slate-100">{t('memory.sidebar.title')}</h1>
           </div>
-          <p className="text-[10px] text-slate-600 pl-6 uppercase tracking-wider">Neural Explorer v2.0</p>
+          <p className="text-[10px] text-slate-600 pl-6 uppercase tracking-wider">{t('memory.sidebar.subtitle')}</p>
         </div>
         
         <div className="p-3 flex-1 overflow-y-auto custom-scrollbar">
              <div className="mb-4">
-                 <h3 className="px-3 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Domains</h3>
+                 <h3 className="px-3 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">{t('memory.sidebar.domains')}</h3>
                  {domains.map(d => (
                    <DomainNode
                      key={d.domain}
@@ -306,7 +309,7 @@ export default function MemoryBrowser() {
              <div className="bg-slate-900/50 rounded p-3 border border-slate-800/50">
                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
                     <Hash size={12} />
-                    <span>Current Path</span>
+                    <span>{t('memory.sidebar.current_path')}</span>
                  </div>
                  <code className="block text-[10px] font-mono text-indigo-300/80 break-all leading-tight">
                     {domain}://{path || 'root'}
@@ -325,7 +328,7 @@ export default function MemoryBrowser() {
                  type="text"
                  value={searchQuery}
                  onChange={e => handleSearch(e.target.value)}
-                 placeholder="Search memories..."
+                 placeholder={t('memory.search.placeholder')}
                  className="w-full bg-slate-900/60 border border-slate-800/50 rounded-lg pl-9 pr-8 py-1.5 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-colors"
                />
                {searchQuery && (searching
@@ -342,13 +345,13 @@ export default function MemoryBrowser() {
            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
              <div className="max-w-7xl mx-auto space-y-4">
                <div className="flex items-center justify-between">
-                 <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-                   {searchResults.length > 0 
-                     ? `${searchResults.length} result${searchResults.length > 1 ? 's' : ''} for "${searchQuery}"`
-                     : `No results for "${searchQuery}"`}
-                 </h2>
+                  <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                    {searchResults.length > 0 
+                      ? t('memory.search.results', { count: searchResults.length, query: searchQuery })
+                      : t('memory.search.no_results', { query: searchQuery })}
+                  </h2>
                  <button onClick={clearSearch} className="text-xs text-slate-600 hover:text-slate-400 transition-colors px-3 py-1 border border-slate-800 rounded hover:border-slate-700">
-                   Back to browser
+                   {t('memory.search.back')}
                  </button>
                </div>
                {searchResults.map((item, i) => (
@@ -384,13 +387,13 @@ export default function MemoryBrowser() {
             {loading ? (
                 <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-600">
                     <div className="w-8 h-8 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-                    <span className="text-xs tracking-widest uppercase">Retrieving Neural Data...</span>
+                    <span className="text-xs tracking-widest uppercase">{t('memory.status.loading')}</span>
                 </div>
             ) : error ? (
                 <div className="h-full flex flex-col items-center justify-center text-rose-500 gap-4">
-                    <p className="text-lg">Access Denied / Error</p>
+                    <p className="text-lg">{t('memory.status.error')}</p>
                     <p className="text-sm opacity-60">{error}</p>
-                    <button onClick={() => navigateTo('')} className="text-xs bg-slate-800 px-4 py-2 rounded hover:text-white transition-colors">Return to Root</button>
+                    <button onClick={() => navigateTo('')} className="text-xs bg-slate-800 px-4 py-2 rounded hover:text-white transition-colors">{t('memory.status.return_root')}</button>
                 </div>
             ) : (
                 <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -419,7 +422,7 @@ export default function MemoryBrowser() {
                                     {node.disclosure && !editing && (
                                         <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-950/20 border border-amber-900/30 rounded-lg text-amber-500/80 text-xs max-w-full">
                                             <AlertTriangle size={14} className="flex-shrink-0" />
-                                            <span className="font-medium mr-1">Disclosure:</span>
+                                            <span className="font-medium mr-1">{t('memory.edit.disclosure_label')}</span>
                                             <span className="italic truncate">{node.disclosure}</span>
                                         </div>
                                     )}
@@ -445,7 +448,7 @@ export default function MemoryBrowser() {
                                     {!editing && (
                                         <button
                                             onClick={() => handleBootToggle(currentUri)}
-                                            title={bootUris.includes(currentUri) ? "Remove from Boot" : "Add to Boot"}
+                                            title={bootUris.includes(currentUri) ? t('memory.boot.remove') : t('memory.boot.add')}
                                             className={clsx(
                                                 "flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-all border",
                                                 bootUris.includes(currentUri)
@@ -454,7 +457,7 @@ export default function MemoryBrowser() {
                                             )}
                                         >
                                             <Zap size={15} className={bootUris.includes(currentUri) ? "fill-amber-400" : ""} />
-                                            Boot
+                                            {t('memory.boot.label')}
                                         </button>
                                     )}
                                     {!editing && (
@@ -463,25 +466,25 @@ export default function MemoryBrowser() {
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-sm font-medium transition-colors border border-slate-700 hover:border-slate-600"
                                         >
                                             <Plus size={16} />
-                                            Create
+                                            {t('memory.create.button')}
                                         </button>
                                     )}
                                     {editing ? (
                                         <>
                                             <button onClick={cancelEditing} className="p-2 hover:bg-slate-800 rounded text-slate-400 transition-colors"><X size={18} /></button>
                                             <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-sm font-medium transition-colors shadow-lg shadow-indigo-900/20">
-                                                <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
+                                                <Save size={16} /> {saving ? t('memory.edit.saving') : t('memory.edit.save')}
                                             </button>
                                         </>
                                     ) : !node.is_virtual && (
                                         <>
                                             <button onClick={startEditing} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-sm font-medium transition-colors border border-slate-700 hover:border-slate-600">
-                                                <Edit3 size={16} /> Edit
+                                                <Edit3 size={16} /> {t('memory.edit.edit')}
                                             </button>
                                             <button
                                               onClick={() => setDeleteTarget({ domain, path })}
                                               className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-rose-950/60 text-slate-500 hover:text-rose-400 rounded text-sm font-medium transition-colors border border-slate-700 hover:border-rose-800/50"
-                                              title="Delete this memory"
+                                              title={t('memory.delete.tooltip')}
                                             >
                                               <Trash2 size={16} />
                                             </button>
@@ -495,8 +498,8 @@ export default function MemoryBrowser() {
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
                                             <Star size={12} />
-                                            Priority
-                                            <span className="text-slate-600 font-normal">(lower = higher priority)</span>
+                                            {t('memory.edit.priority')}
+                                            <span className="text-slate-600 font-normal">{t('memory.edit.priority_hint')}</span>
                                         </label>
                                         <input 
                                             type="number"
@@ -509,14 +512,14 @@ export default function MemoryBrowser() {
                                     <div className="space-y-1.5">
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
                                             <AlertTriangle size={12} />
-                                            Disclosure
-                                            <span className="text-slate-600 font-normal">(when to recall)</span>
+                                            {t('memory.edit.disclosure')}
+                                            <span className="text-slate-600 font-normal">{t('memory.edit.disclosure_hint')}</span>
                                         </label>
                                         <input 
                                             type="text"
                                             value={editDisclosure}
                                             onChange={e => setEditDisclosure(e.target.value)}
-                                            placeholder="e.g. When I need to remember..."
+                                            placeholder={t('memory.edit.disclosure_placeholder')}
                                             className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors"
                                         />
                                     </div>
@@ -555,7 +558,7 @@ export default function MemoryBrowser() {
                         <div className="space-y-4 pt-4">
                             <div className="flex items-center gap-3 text-slate-500">
                                 <h2 className="text-xs font-bold uppercase tracking-widest">
-                                    {isRoot ? "Memory Clusters" : "Sub-Nodes"}
+                                    {isRoot ? t('memory.grid.memory_clusters') : t('memory.grid.sub_nodes')}
                                 </h2>
                                 <div className="h-px flex-1 bg-slate-800/50"></div>
                                 <span className="text-xs bg-slate-800/50 px-2 py-0.5 rounded-full">{data.children.length}</span>
@@ -579,7 +582,7 @@ export default function MemoryBrowser() {
                     {!loading && !data.children?.length && !node && (
                         <div className="flex flex-col items-center justify-center py-20 text-slate-600 gap-4">
                             <Folder size={48} className="opacity-20" />
-                            <p className="text-sm">Empty Sector</p>
+                            <p className="text-sm">{t('memory.empty.empty_sector')}</p>
                         </div>
                     )}
                 </div>
@@ -606,15 +609,15 @@ export default function MemoryBrowser() {
                 <Trash2 size={20} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-100">Delete Memory</h3>
-                <p className="text-xs text-slate-500 mt-0.5">This action is irreversible</p>
+                <h3 className="text-base font-bold text-slate-100">{t('memory.delete.title')}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{t('memory.delete.irreversible')}</p>
               </div>
             </div>
             <div className="mb-5 p-3 bg-slate-900/60 border border-slate-800/50 rounded-lg">
               <code className="text-sm font-mono text-rose-300/80 break-all">{deleteTarget.domain}://{deleteTarget.path}</code>
             </div>
             <p className="text-sm text-slate-400 mb-6">
-              Are you sure you want to delete this memory path? If this is the node's last path, the content will become an orphan.
+              {t('memory.delete.confirm_message')}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -622,14 +625,14 @@ export default function MemoryBrowser() {
                 disabled={deleting}
                 className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
               >
-                Cancel
+                {t('memory.delete.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
                 className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors shadow-lg shadow-rose-900/20 disabled:opacity-50"
               >
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting ? t('memory.delete.deleting') : t('memory.delete.button')}
               </button>
             </div>
           </div>

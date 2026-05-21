@@ -1,0 +1,163 @@
+{
+  "api": {
+    "browse": {
+      "path_not_found": "路径未找到: {uri}",
+      "disclosure_empty": "disclosure 不能为空",
+      "invalid_title": "标题只能包含字母、数字、连字符和下划线",
+      "invalid_name": "new_name 只能包含字母数字字符、连字符和下划线",
+      "rename_partial_failure": "重命名部分失败: 旧路径删除错误 ({error})。新路径已回滚。",
+      "keyword_not_found": "关键词绑定未找到",
+      "graph_error": "图操作失败",
+      "glossary_error": "词汇表操作失败"
+    },
+    "review": {
+      "no_changes_for_node": "节点 '{node_uuid}' 没有变更",
+      "no_pending_changes": "没有待处理的变更",
+      "approved_node": "已批准节点 '{node_uuid}'（清除了 {count} 行）",
+      "all_integrated": "所有变更已集成（清除了 {count} 行变更）",
+      "memory_deleted": "记忆 {memory_id} 已永久删除",
+      "rollback_failed": "回滚失败: {error}",
+      "changeset_not_found": "变更集未找到",
+      "no_changes": "没有可集成的变更",
+      "cannot_restore_memory": "无法从快照目标 {memory_id} 恢复之前的记忆内容: {error}",
+      "graph_error": "图操作失败"
+    },
+    "settings": {
+      "docker_locked_fields": "无法在 Docker 中修改 {fields} — 这些由 docker-compose.yml 和 nginx.conf 管理。",
+      "invalid_port": "无效端口 {port}。必须在 1 到 65535 之间。",
+      "token_too_short": "api_token 太短（{len} 个字符）。请使用至少 32 个字符，或留空以保留现有 token。",
+      "token_required": "当 host 为网络可达地址时，必须设置 API token。请设置至少 32 字符的 API token，或将 host 保持为 127.0.0.1。",
+      "invalid_uri_format": "无效的 URI 格式: {uri}",
+      "uri_empty": "URI 不能为空",
+      "invalid_uri_format_bare": "无效的 URI 格式",
+      "cannot_delete_default_ns": "无法删除默认命名空间",
+      "no_boot_uri_override": "命名空间 '{ns}' 没有 boot URI 覆盖",
+      "unsupported_scheme": "不支持的数据库方案。允许: {schemes}",
+      "file_exists": "文件已存在",
+      "db_create_failed": "创建数据库失败: {error}",
+      "db_connected": "连接成功",
+      "db_failed": "连接失败: {error}",
+      "open_folder_docker": "Docker 部署中无法打开文件夹。请通过主机上的挂载卷访问文件。",
+      "sqlite_only": "仅适用于 SQLite 数据库",
+      "parse_path_failed": "无法从 URL 解析数据库路径",
+      "folder_not_found": "文件夹不存在: {path}",
+      "invalid_domain": "无效的域名"
+    },
+    "maintenance": {
+      "memory_not_found": "记忆 {memory_id} 未找到",
+      "no_orphans": "没有孤儿记忆",
+      "graph_error": "图操作失败"
+    },
+    "utils": {
+      "diff": {
+        "added": "新增内容，共{chars}字符",
+        "removed_all": "删除所有内容，原有{chars}字符",
+        "minor": "微小变化：新增{additions}字符，删除{deletions}字符",
+        "moderate": "中等变化：新增{additions}字符，删除{deletions}字符",
+        "major": "大幅变化：新增{additions}字符，删除{deletions}字符，变化率{change_ratio:.1f}%"
+      }
+    }
+  },
+  "mcp": {
+    "read_memory": {
+      "index_no_domain": "错误: index 命令需要指定域名 (例如 system://index/core)",
+      "diagnostic_no_domain": "错误: diagnostic 命令需要指定域名 (例如 system://diagnostic/core)",
+      "random_no_domain": "错误: random 命令需要指定域名 (例如 system://random/core)",
+      "unknown_domain": "错误: 未知域名 '{domain}'。有效域名: {valid_domains}",
+      "recent_invalid_number": "错误: URI '{uri}' 中的数字无效。用法: system://recent 或 system://recent/N (例如 system://recent/20)",
+      "random_no_memories": "域名 '{domain}' 中没有可用于随机选择的记忆。",
+      "error": "错误: {error}"
+    },
+    "create_memory": {
+      "disclosure_required": "错误: disclosure 是必填项。每条记忆必须有一个描述何时回想它的触发条件。省略 disclosure = 无法访问的记忆。",
+      "invalid_title": "错误: 标题只能包含字母数字字符、下划线或连字符（不允许空格、斜杠或特殊字符）。",
+      "error": "错误: {error}",
+      "success": "成功: 记忆已创建在 '{created_uri}'\n\n[系统提醒]: 环顾你的记忆网络。是否存在与此相关的现有记忆？阅读它们会触发回想这条新记忆的需要吗？如果是，请链接它们！\n- 如果相关记忆较少且此记忆范围较窄，使用 `add_alias`。\n- 如果相关记忆较多且此记忆范围较广，考虑使用 `manage_triggers`。\n- （绝不要为了强制触发而编造任意占位词。）\n\n[等一下]: 你知道 '{parent_uri}' 说了什么吗？如果本次会话中还没有读过它，请先用 read_memory() 读一下。然后: 这条新记忆是否与你当前上下文中的任何记忆冲突？如果冲突，请先用 memory-audit-belief-duel 技能解决，再继续。"
+    },
+    "update_memory": {
+      "mutual_exclusive": "错误: 不能同时使用 old_string/new_string（补丁模式）和 append。请选择一种。",
+      "old_no_new": "错误: 提供了 old_string 但没有 new_string。要删除一段内容，请使用 new_string=\"\"。",
+      "new_no_old": "错误: 提供了 new_string 但没有 old_string。补丁模式需要两者都提供。",
+      "identical": "错误: old_string 和 new_string 完全相同。不会产生任何变更。",
+      "not_found": "错误: 未找到 '{uri}' 处的记忆。",
+      "too_many_matches": "错误: old_string 在 '{uri}' 的记忆内容中出现了 {count} 次。请提供更多上下文以使其唯一。",
+      "not_found_unicode": "错误: 在 '{uri}' 的记忆内容中未找到 old_string，即使经过 Unicode 规范化（引号、破折号、空白）后也找不到。请重新读取记忆并复制准确的文本。",
+      "multiple_unicode": "错误: old_string 在 '{uri}' 的记忆内容中被找到多次（Unicode 规范化后）。请提供更多上下文以使其唯一。",
+      "identical_result": "错误: 替换后内容与原始内容完全一致，'{uri}' 未发生实际变更。找到了 old_string 但用 new_string 替换后没有变化。请检查细微的空白差异。",
+      "empty_append": "错误: 对 '{uri}' 的追加内容为空。请提供非空文本。",
+      "no_fields": "错误: 未给 '{uri}' 提供任何更新字段。请使用补丁模式（old_string + new_string）、追加模式（append）或元数据字段（priority/disclosure）。",
+      "success": "成功: '{uri}' 处的记忆已更新",
+      "auto_normalized": "[系统通知]: 自动规范化了 `{field_name}` — 已将字面量 '\\n' 序列转换为实际换行符，因为它们与存储的内容匹配。\n- 原始: `{orig_preview}`\n- 规范化后: `{norm_preview}`",
+      "error": "错误: {error}"
+    },
+    "delete_memory": {
+      "not_found": "错误: 未找到 '{uri}' 处的记忆。",
+      "success": "成功: 记忆 '{uri}' 已删除。",
+      "recursive_removal": " （递归移除了 {count} 条后代路径）",
+      "error": "错误: {error}"
+    },
+    "add_alias": {
+      "success": "成功: 别名 '{new_uri}' 现在指向与 '{target_uri}' 相同的记忆",
+      "inherited_aliases": "自动继承了 {count} 条后代的别名:",
+      "no_inherited": "没有继承子别名。",
+      "duplicate_warning": "\n\n⚠ 重复兄弟节点警告: 此节点现在在同一父目录下出现了 {count} 次: {siblings}。\n如果你正在重命名/移动，请现在删除旧路径。\n如果不是，你可能创建了一个冗余的别名 — 考虑移除其中一个。",
+      "hold_on": "\n\n[等一下]: 你知道 '{parent_uri}' 说了什么吗？如果本次会话中还没有读过它，请先用 read_memory() 读一下。然后: 被别名的内容是否与你当前上下文中的任何记忆冲突？如果冲突，请先用 memory-audit-belief-duel 技能解决，再继续。",
+      "error": "错误: {error}"
+    },
+    "manage_triggers": {
+      "not_found": "错误: 未找到 '{uri}' 处的记忆。",
+      "simultaneous_add_remove": "错误: 不能同时添加和删除相同的关键词: {overlap}",
+      "header": "'{uri}' 的关键词:",
+      "added_line": "  已添加: {keywords}",
+      "skipped_add_line": "  已存在（跳过）: {keywords}",
+      "removed_line": "  已移除: {keywords}",
+      "skipped_remove_line": "  未找到（跳过）: {keywords}",
+      "current_line": "  当前: [{keywords}]",
+      "current_none": "  当前: (无)",
+      "error": "错误: {error}"
+    },
+    "search_memory": {
+      "unknown_domain": "错误: 未知域名 '{domain}'。有效域名: {valid_domains}",
+      "no_results": "{scope} 未找到匹配的记忆。",
+      "found_header": "为 '{query}' 找到 {count} 条匹配:",
+      "error": "错误: {error}"
+    }
+  },
+  "config": {
+    "docker_hint": "Docker 配置缺失或无效。\n\n如果你升级了旧版 Docker 部署，请在仓库根目录的主机上运行:\n\n  python scripts/setup_docker.py\n  docker compose up -d --build\n\n这会迁移旧的 .env 设置到 config.json，同时保留现有的 PostgreSQL 凭证和卷。\n\n如果 ./config.json 被 Docker 误创建为目录，请先删除该目录，再重新运行 setup 命令。",
+    "demo_copied": "[Nocturne] 已复制 {demo_db} → {target}（你的数据现在不会被 git pull 覆盖了）",
+    "using_db": "[Nocturne] 使用 {name} 作为数据库",
+    "migrating_dotenv": "[Nocturne] 正在将设置从 .env 迁移到 config.json",
+    "generating_env": "[Nocturne] 正在从环境变量生成 config.json",
+    "permission_denied": "[警告] 写入 {filename} 权限被拒绝。设置仅在内存中保留，重启后丢失。",
+    "permission_docker_hint": "如果在 Linux 上使用 Docker，请确保容器用户（UID 1000）有写入权限（例如在主机上运行 `sudo chown 1000 config.json`）。",
+    "permission_local_hint": "请确保当前用户对此文件及其父目录有写入权限。",
+    "db_migrated_not_writable": "数据库已从 {demo_db} 迁移，但 config.json 不可写入。不持久化此更改会导致重启时数据丢失。请修复文件权限后重启。"
+  },
+  "web": {
+    "ui_building": "管理界面正在构建或缺失。请稍后刷新...",
+    "ui_missing": "管理界面缺少 index.html。"
+  },
+  "startup": {
+    "npm_not_found": "[Nocturne] 管理界面未构建且未找到 npm。请安装 Node.js 或手动构建: cd frontend && npm install && npm run build",
+    "building": "[Nocturne] 首次运行 — 正在构建管理界面（可能需要一分钟）...",
+    "installing_deps": "正在安装依赖",
+    "compiling": "正在编译",
+    "step_progress": "  {label}...",
+    "build_failed": "[Nocturne] '{cmd}' 失败（退出码 {exit_code}）:\n{error_msg}",
+    "build_error": "[Nocturne] 自动构建失败: {error}\n  请手动构建: cd frontend && npm install && npm run build",
+    "admin_ready": "[Nocturne] 管理界面已就绪。",
+    "port_in_use": "\n[Nocturne] 注意: 管理界面已跳过（端口 {port} 被占用）。",
+    "port_in_use_expected": "[Nocturne] 如果另一个 MCP 实例已在提供界面，这是正常现象。",
+    "port_in_use_mcp_ok": "[Nocturne] MCP 服务器本身将继续正常运行。",
+    "admin_ui_label": "管理界面:  {url}",
+    "rest_api_label": "REST API:  {url}"
+  },
+  "system": {
+    "uri_not_found": "URI '{uri}' 未找到。",
+    "error_index": "生成索引时出错: {error}",
+    "error_recent": "生成最近记忆视图时出错: {error}",
+    "error_glossary": "生成词汇索引时出错: {error}",
+    "error_diagnostic": "生成诊断视图时出错: {error}"
+  }
+}

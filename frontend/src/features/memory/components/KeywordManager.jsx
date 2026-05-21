@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Tag, X, Save, Plus } from 'lucide-react';
 import { api } from '../../../lib/api';
+import { toast } from '../../../components/Toast';
+import { useLocale } from '../../../i18n/useLocale';
 
 const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
+  const { t } = useLocale();
   const [adding, setAdding] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const inputRef = useRef(null);
@@ -20,7 +23,7 @@ const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
       setAdding(false);
       onUpdate();
     } catch (err) {
-      alert('Failed to add keyword: ' + (err.response?.data?.detail || err.message));
+      toast(t('memory.keywords.add_error', { error: err.response?.data?.detail || err.message }), "error");
     }
   };
 
@@ -30,7 +33,7 @@ const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
       await api.delete('/browse/glossary', { data: { keyword: kw, node_uuid: nodeUuid } });
       onUpdate();
     } catch (err) {
-      alert('Failed to remove keyword: ' + (err.response?.data?.detail || err.message));
+      toast(t('memory.keywords.remove_error', { error: err.response?.data?.detail || err.message }), "error");
     }
   };
 
@@ -43,7 +46,7 @@ const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
     <div className="flex items-start gap-2 text-xs text-slate-500">
       <Tag size={13} className="flex-shrink-0 mt-0.5 text-amber-700" />
       <div className="flex flex-wrap gap-1.5 items-center">
-        <span className="text-amber-700 font-medium">Glossary:</span>
+        <span className="text-amber-700 font-medium">{t('memory.keywords.label')}</span>
         {keywords.map(kw => (
           <span
             key={kw}
@@ -67,7 +70,7 @@ const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
               onChange={e => setNewKeyword(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={() => { if (!newKeyword.trim()) setAdding(false); }}
-              placeholder="keyword..."
+              placeholder={t('memory.keywords.placeholder')}
               className="w-28 px-1.5 py-0.5 bg-slate-900 border border-amber-800/40 rounded text-amber-300 text-[11px] font-mono focus:outline-none focus:border-amber-500/50"
             />
             <button onClick={handleAdd} className="text-amber-600 hover:text-amber-400 transition-colors">
@@ -79,7 +82,7 @@ const KeywordManager = ({ keywords, nodeUuid, onUpdate }) => {
             onClick={() => setAdding(true)}
             className="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-amber-800/30 rounded text-amber-700 hover:text-amber-400 hover:border-amber-600/40 transition-colors text-[11px]"
           >
-            <Plus size={9} /> add
+            <Plus size={9} /> {t('memory.keywords.add')}
           </button>
         )}
       </div>

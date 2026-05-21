@@ -22,6 +22,8 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+from locales import t
+
 _BACKEND_DIR = Path(__file__).resolve().parent
 # 兼容 Docker 部署：Dockerfile 把 backend/* 复制到 WORKDIR，所以容器内
 # _BACKEND_DIR 本身就是根目录；本地开发则是 backend/，根目录在上一级。
@@ -48,6 +50,7 @@ DEFAULTS: dict[str, Any] = {
     "api_token": None,
     "cors_origins": None,
     "public_readonly_mcp": False,
+    "locale": "en",
 }
 
 _ENV_MAP: dict[str, str] = {
@@ -59,6 +62,7 @@ _ENV_MAP: dict[str, str] = {
     "api_token": "API_TOKEN",
     "cors_origins": "CORS_ORIGINS",
     "public_readonly_mcp": "PUBLIC_READONLY_MCP",
+    "locale": "LOCALE",
 }
 
 
@@ -72,21 +76,7 @@ class ConfigWriteError(Exception):
 
 
 def _docker_setup_hint() -> str:
-    return (
-        "Docker configuration is missing or invalid.\n"
-        "\n"
-        "If you upgraded an older Docker deployment, run this on the host from "
-        "the repository root:\n"
-        "\n"
-        "  python scripts/setup_docker.py\n"
-        "  docker compose up -d --build\n"
-        "\n"
-        "This migrates the old .env settings into config.json while preserving "
-        "your existing PostgreSQL credentials and volume.\n"
-        "\n"
-        "If ./config.json was accidentally created as a directory by Docker, "
-        "remove that directory first, then rerun the setup command."
-    )
+    return t("config.docker_hint")
 
 
 def _save_file(cfg: dict) -> None:
@@ -96,12 +86,12 @@ def _save_file(cfg: dict) -> None:
             f.write("\n")
     except PermissionError as e:
         import sys
-        print(f"[Warning] Permission denied writing to {CONFIG_PATH.name}. Settings will only persist in memory until restart.", file=sys.stderr)
-        msg = f"Permission denied writing to {CONFIG_PATH.name}. "
+        print(t("config.permission_denied").format(filename=CONFIG_PATH.name), file=sys.stderr)
+        msg = t("config.permission_denied").format(filename=CONFIG_PATH.name) + " "
         if _IN_DOCKER:
-            msg += "If using Docker on Linux, ensure the container user (UID 1000) has write access (e.g. run `sudo chown 1000 config.json` on the host)."
+            msg += t("config.permission_docker_hint")
         else:
-            msg += "Ensure the current user has write access to this file and its parent directory."
+            msg += t("config.permission_local_hint")
         raise ConfigWriteError(msg) from e
 
 
@@ -159,12 +149,11 @@ def _migrate_away_from_demo(cfg: dict) -> bool:
     if db_path.exists():
         shutil.copy2(str(db_path), str(target))
         print(
-            f"[Nocturne] Copied {_DEMO_DB} → {target.name}"
-            " (your data is now safe from git pull overwrites)",
+            t("config.demo_copied").format(demo_db=_DEMO_DB, target=target.name),
             file=sys.stderr,
         )
     else:
-        print(f"[Nocturne] Using {target.name} as your database", file=sys.stderr)
+        print(t("config.using_db").format(name=target.name), file=sys.stderr)
 
     cfg["database_url"] = _make_db_url(target)
     return True
@@ -218,7 +207,7 @@ def _migrate_from_dotenv() -> Optional[dict]:
     app_keys = set(_ENV_MAP.values()) | {"CORE_MEMORY_URIS"}
     if not any(k in app_keys or k.startswith("CORE_MEMORY_URIS__") for k in env):
         return None
-    print("[Nocturne] Migrating settings from .env → config.json", file=sys.stderr)
+    print(t("config.migrating_dotenv"), file=sys.stderr)
     return _build_cfg_from_kvs(env)
 
 
@@ -229,7 +218,7 @@ def _migrate_from_env_vars() -> Optional[dict]:
     strong_signals = {"DATABASE_URL", "API_TOKEN", "VALID_DOMAINS", "CORE_MEMORY_URIS"}
     if not any(k in strong_signals or k.startswith("CORE_MEMORY_URIS__") for k in os.environ):
         return None
-    print("[Nocturne] Generating config.json from environment variables", file=sys.stderr)
+    print(t("config.generating_env"), file=sys.stderr)
     return _build_cfg_from_kvs(dict(os.environ))
 
 
@@ -265,9 +254,7 @@ def _load() -> dict:
                 _save_file(_cache)
             except ConfigWriteError as e:
                 raise RuntimeError(
-                    f"Database migrated from {_DEMO_DB} but config.json is not writable. "
-                    f"Starting without persisting this change would lose data on restart. "
-                    f"Fix file permissions and restart."
+                    t("config.db_migrated_not_writable").format(demo_db=_DEMO_DB)
                 ) from e
 
         return _cache
@@ -286,9 +273,7 @@ def _load() -> dict:
     except ConfigWriteError as e:
         if migrated:
             raise RuntimeError(
-                f"Database migrated from {_DEMO_DB} but config.json is not writable. "
-                f"Starting without persisting this change would lose data on restart. "
-                f"Fix file permissions and restart."
+                t("config.db_migrated_not_writable").format(demo_db=_DEMO_DB)
             ) from e
 
     _cache = cfg
@@ -307,6 +292,11 @@ def _invalidate():
 def get(key: str) -> Any:
     """Get a config value. Reads only from config.json."""
     return _load().get(key, DEFAULTS.get(key))
+
+
+def get_locale() -> str:
+    """Get the current locale code, falling back to 'en'."""
+    return get("locale") or "en"
 
 
 def get_boot_uris(namespace: str = "") -> list[str]:

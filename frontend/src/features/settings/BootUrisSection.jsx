@@ -3,17 +3,22 @@ import {
   Plus, Trash2, GripVertical, Save, ChevronDown, ChevronUp, Layers
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
 import {
   getAllBootUris, setBootUrisForNs, deleteBootUrisForNs, getNamespaces
 } from '../../lib/api';
+import { toast } from '../../components/Toast';
+import ConfirmModal from '../../components/ConfirmModal';
 
 function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete, onSaved }) {
+  const { t } = useTranslation();
   const [uris, setUris] = useState(initialUris);
   const [newUri, setNewUri] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [open, setOpen] = useState(isDefault);
   const [deleting, setDeleting] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
   const dragItem = useRef(null);
   const dragOver = useRef(null);
 
@@ -57,26 +62,35 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
       setDirty(false);
       onSaved?.();
     } catch (e) {
-      alert('Failed to save: ' + (e.response?.data?.detail || e.message));
+      toast(t('settings.boot_uris.save_failed') + ': ' + (e.response?.data?.detail || e.message), "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm(`Remove override for "${namespace}"? This namespace will fall back to the default boot URIs.`)) return;
-    setDeleting(true);
-    try {
-      await deleteBootUrisForNs(namespace);
-      onDelete?.(namespace);
-    } catch (e) {
-      alert('Failed to delete: ' + (e.response?.data?.detail || e.message));
-    } finally {
-      setDeleting(false);
-    }
+  const handleDelete = () => {
+    setConfirmState({
+      title: t('settings.boot_uris.remove_override_title'),
+      message: t('settings.boot_uris.remove_override_message', { namespace }),
+      variant: "danger",
+      confirmLabel: t('settings.boot_uris.remove'),
+      onConfirm: async () => {
+        setConfirmState(null);
+        setDeleting(true);
+        try {
+          await deleteBootUrisForNs(namespace);
+          onDelete?.(namespace);
+        } catch (e) {
+          toast(t('settings.boot_uris.delete_failed') + ': ' + (e.response?.data?.detail || e.message), "error");
+        } finally {
+          setDeleting(false);
+        }
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
-  const label = isDefault ? 'Default (fallback)' : namespace;
+  const label = isDefault ? t('settings.boot_uris.default_label') : namespace;
 
   return (
     <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden">
@@ -86,8 +100,8 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
       >
         <Layers size={14} className={clsx(isDefault ? "text-indigo-400" : "text-slate-500")} />
         <span className={clsx("text-sm font-medium", isDefault ? "text-slate-200" : "text-slate-300")}>{label}</span>
-        {isDefault && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">fallback</span>}
-        <span className="text-xs text-slate-600 ml-auto mr-2">{uris.length} URI{uris.length !== 1 ? 's' : ''}</span>
+        {isDefault && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">{t('settings.boot_uris.fallback_badge')}</span>}
+        <span className="text-xs text-slate-600 ml-auto mr-2">{t('settings.boot_uris.uri_count', { count: uris.length })}</span>
         {open ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
       </button>
 
@@ -115,7 +129,7 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
               </div>
             ))}
             {uris.length === 0 && (
-              <p className="text-xs text-slate-600 italic py-1.5">No boot URIs configured</p>
+              <p className="text-xs text-slate-600 italic py-1.5">{t('settings.boot_uris.empty')}</p>
             )}
           </div>
 
@@ -125,7 +139,7 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
               value={newUri}
               onChange={e => setNewUri(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              placeholder="core://agent"
+              placeholder={t('settings.boot_uris.placeholder')}
               className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
             />
             <button
@@ -133,7 +147,7 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
               disabled={!newUri.trim()}
               className="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-200 rounded-md text-xs flex items-center gap-1 transition-colors"
             >
-              <Plus size={12} /> Add
+              <Plus size={12} /> {t('settings.boot_uris.add')}
             </button>
           </div>
 
@@ -145,7 +159,7 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
                 className="text-xs text-red-400/70 hover:text-red-400 flex items-center gap-1 transition-colors"
               >
                 <Trash2 size={11} />
-                {deleting ? 'Removing...' : 'Remove override'}
+                {deleting ? t('settings.boot_uris.removing') : t('settings.boot_uris.remove_override_button')}
               </button>
             )}
             {isDefault && <div />}
@@ -156,17 +170,19 @@ function NamespaceBootPanel({ namespace, uris: initialUris, isDefault, onDelete,
                 className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Save size={12} />
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? t('settings.boot_uris.saving') : t('settings.boot_uris.save')}
               </button>
             )}
           </div>
         </div>
       )}
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   );
 }
 
 export default function BootUrisSection() {
+  const { t } = useTranslation();
   const [allBootUris, setAllBootUris] = useState({});
   const [knownNamespaces, setKnownNamespaces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -207,7 +223,7 @@ export default function BootUrisSection() {
     });
   };
 
-  if (loading) return <div className="pt-4 text-sm text-slate-500">Loading...</div>;
+  if (loading) return <div className="pt-4 text-sm text-slate-500">{t('settings.boot_uris.loading')}</div>;
 
   const defaultUris = allBootUris[''] || [];
   const otherNamespaces = Object.keys(allBootUris).filter(ns => ns !== '').sort();
@@ -215,10 +231,7 @@ export default function BootUrisSection() {
 
   return (
     <div className="space-y-3 pt-4">
-      <p className="text-xs text-slate-500">
-        URIs loaded into <code className="text-indigo-400">system://boot</code> when an agent starts.
-        Agents without a specific override use the default list.
-      </p>
+      <p className="text-xs text-slate-500">{t('settings.boot_uris.description')}</p>
 
       <div className="space-y-2">
         <NamespaceBootPanel
@@ -248,11 +261,11 @@ export default function BootUrisSection() {
               onChange={e => setNewNs(e.target.value === '__custom__' ? '' : e.target.value)}
               className="bg-slate-950 border border-slate-700 text-slate-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             >
-              <option value="">select or type below...</option>
+              <option value="">{t('settings.boot_uris.select_or_type')}</option>
               {availableToAdd.map(ns => (
                 <option key={ns} value={ns}>{ns}</option>
               ))}
-              <option value="__custom__">+ custom name...</option>
+              <option value="__custom__">{t('settings.boot_uris.custom_name')}</option>
             </select>
           ) : null}
           <input
@@ -264,7 +277,7 @@ export default function BootUrisSection() {
               if (e.key === 'Enter') handleAddNamespace();
               if (e.key === 'Escape') { setAddingNs(false); setNewNs(''); }
             }}
-            placeholder="namespace name"
+            placeholder={t('settings.boot_uris.namespace_placeholder')}
             className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-md px-2.5 py-1.5 text-xs font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
           />
           <button
@@ -272,13 +285,13 @@ export default function BootUrisSection() {
             disabled={!newNs.trim() || newNs.trim() in allBootUris}
             className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-md text-xs flex items-center gap-1 transition-colors"
           >
-            <Plus size={12} /> Add
+            <Plus size={12} /> {t('settings.boot_uris.add')}
           </button>
           <button
             onClick={() => { setAddingNs(false); setNewNs(''); }}
             className="px-2 py-1.5 text-slate-400 hover:text-slate-200 text-xs transition-colors"
           >
-            Cancel
+            {t('settings.boot_uris.cancel')}
           </button>
         </div>
       ) : (
@@ -286,7 +299,7 @@ export default function BootUrisSection() {
           onClick={() => setAddingNs(true)}
           className="w-full py-2 border border-dashed border-slate-700 hover:border-slate-500 rounded-lg text-xs text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1.5 transition-colors"
         >
-          <Plus size={12} /> Add namespace override
+          <Plus size={12} /> {t('settings.boot_uris.add_namespace')}
         </button>
       )}
     </div>

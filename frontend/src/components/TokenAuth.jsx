@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { LayoutGrid, KeyRound, Loader2, AlertCircle } from 'lucide-react';
 import { getDomains } from '../lib/api';
 
 const TokenAuth = ({ onAuthenticated }) => {
+  const { t } = useTranslation();
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,9 +26,9 @@ const TokenAuth = ({ onAuthenticated }) => {
     } catch (err) {
       localStorage.removeItem('api_token');
       if (err.response && err.response.status === 401) {
-        setError('Token 无效，请检查后重试');
+        setError(t('auth.invalid_token'));
       } else {
-        setError('连接失败，请检查服务器状态');
+        setError(t('auth.network_error'));
       }
     } finally {
       setLoading(false);
@@ -43,8 +45,8 @@ const TokenAuth = ({ onAuthenticated }) => {
             <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mb-4">
               <LayoutGrid className="w-6 h-6 text-indigo-500" />
             </div>
-            <h1 className="text-lg font-bold text-slate-100">Nocturne Admin</h1>
-            <p className="text-xs text-slate-500 mt-1">记忆管理面板</p>
+            <h1 className="text-lg font-bold text-slate-100">{t('auth.title')}</h1>
+            <p className="text-xs text-slate-500 mt-1">{t('auth.subtitle')}</p>
           </div>
 
           {/* 表单 */}
@@ -54,7 +56,7 @@ const TokenAuth = ({ onAuthenticated }) => {
                 htmlFor="api-token"
                 className="block text-xs font-medium text-slate-400 mb-2"
               >
-                请输入 API Token
+                {t('auth.token_label')}
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -62,13 +64,14 @@ const TokenAuth = ({ onAuthenticated }) => {
                 </div>
                 <input
                   id="api-token"
+                  data-testid="auth-token-input"
                   type="password"
                   value={token}
                   onChange={(e) => {
                     setToken(e.target.value);
                     if (error) setError('');
                   }}
-                  placeholder="输入令牌..."
+                  placeholder={t('auth.token_placeholder')}
                   disabled={loading}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 transition-colors disabled:opacity-50"
                 />
@@ -77,7 +80,7 @@ const TokenAuth = ({ onAuthenticated }) => {
 
             {/* 错误提示 */}
             {error && (
-              <div className="flex items-center gap-2 text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2">
+              <div data-testid="auth-error-msg" className="flex items-center gap-2 text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{error}</span>
               </div>
@@ -85,16 +88,17 @@ const TokenAuth = ({ onAuthenticated }) => {
 
             <button
               type="submit"
+              data-testid="auth-submit-btn"
               disabled={loading || !token.trim()}
               className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  验证中...
+                  {t('auth.verifying')}
                 </>
               ) : (
-                '连接'
+                t('auth.connect')
               )}
             </button>
           </form>
@@ -102,7 +106,7 @@ const TokenAuth = ({ onAuthenticated }) => {
 
         {/* 底部文字 */}
         <p className="text-center text-[10px] text-slate-700 mt-4 tracking-wider uppercase">
-          Nocturne Memory
+          {t('auth.footer')}
         </p>
       </div>
     </div>

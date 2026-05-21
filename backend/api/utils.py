@@ -2,6 +2,8 @@ from diff_match_patch import diff_match_patch
 import difflib
 from typing import Tuple
 
+from locales import t
+
 
 def get_text_diff(text_a: str, text_b: str) -> Tuple[str, str, str]:
     """
@@ -61,16 +63,16 @@ def _generate_diff_summary(diffs, text_a: str, text_b: str) -> str:
     total_new = len(text_b)
 
     if total_old == 0:
-        return f"新增内容，共{total_new}字符"
+        return t("api.utils.diff.added").format(chars=total_new)
 
     if total_new == 0:
-        return f"删除所有内容，原有{total_old}字符"
+        return t("api.utils.diff.removed_all").format(chars=total_old)
 
     change_ratio = (additions + deletions) / (total_old + total_new) * 100
 
     if change_ratio < 5:
-        return f"微小变化：新增{additions}字符，删除{deletions}字符"
+        return t("api.utils.diff.minor").format(additions=additions, deletions=deletions)
     elif change_ratio < 20:
-        return f"中等变化：新增{additions}字符，删除{deletions}字符"
+        return t("api.utils.diff.moderate").format(additions=additions, deletions=deletions)
     else:
-        return f"大幅变化：新增{additions}字符，删除{deletions}字符，变化率{change_ratio:.1f}%"
+        return t("api.utils.diff.major").format(additions=additions, deletions=deletions, change_ratio=change_ratio)

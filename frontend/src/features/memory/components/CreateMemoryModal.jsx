@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import { createMemory } from '../../../lib/api';
+import { useLocale } from '../../../i18n/useLocale';
 
 export default function CreateMemoryModal({ onClose, onCreated, parentPath, currentDomain }) {
   const [title, setTitle] = useState('');
@@ -9,6 +10,7 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
   const [disclosure, setDisclosure] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useLocale();
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -68,8 +70,8 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
             <Plus size={20} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-100">Create Memory</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Add a new node to the memory tree</p>
+            <h3 className="text-base font-bold text-slate-100">{t('memory.create.title')}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{t('memory.create.subtitle')}</p>
           </div>
         </div>
 
@@ -83,7 +85,7 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Parent path (readonly) */}
             <div className="space-y-1.5 md:col-span-2">
-              <label className="text-xs font-medium text-slate-400">Parent path</label>
+              <label className="text-xs font-medium text-slate-400">{t('memory.create.parent_path')}</label>
               <div className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-indigo-300/70 font-mono select-all">
                 {currentDomain}://{parentPath || 'root'}
               </div>
@@ -93,15 +95,15 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
             <div className="space-y-1.5">
               <label className="flex items-baseline justify-between">
                 <span className="text-xs font-medium text-slate-400">
-                  Title <span className="text-slate-600 font-normal">(optional)</span>
+                  {t('memory.create.title_label')} <span className="text-slate-600 font-normal">{t('memory.create.optional')}</span>
                 </span>
-                <span className="text-[10px] text-slate-600">alphanumeric, hyphens, underscores only</span>
+                <span className="text-[10px] text-slate-600">{t('memory.create.title_hint')}</span>
               </label>
               <input
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. my_memory"
+                placeholder={t('memory.create.title_placeholder')}
                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors"
               />
             </div>
@@ -109,8 +111,8 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
             {/* Priority */}
             <div className="space-y-1.5">
               <label className="flex items-baseline justify-between">
-                <span className="text-xs font-medium text-slate-400">Priority</span>
-                <span className="text-[10px] text-slate-600">0 = highest, 5+ = low</span>
+                <span className="text-xs font-medium text-slate-400">{t('memory.create.priority_label')}</span>
+                <span className="text-[10px] text-slate-600">{t('memory.create.priority_hint')}</span>
               </label>
               <input
                 type="number"
@@ -125,13 +127,13 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
           {/* Disclosure */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-400">
-              Disclosure <span className="text-rose-400">*</span>
+              {t('memory.create.disclosure_label')} <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
               value={disclosure}
               onChange={e => setDisclosure(e.target.value)}
-              placeholder="When to recall this memory..."
+              placeholder={t('memory.create.disclosure_placeholder')}
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors"
             />
           </div>
@@ -139,13 +141,13 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
           {/* Content */}
           <div className="space-y-1.5 flex flex-col">
             <label className="text-xs font-medium text-slate-400">
-              Content <span className="text-rose-400">*</span>
+              {t('memory.create.content_label')} <span className="text-rose-400">*</span>
             </label>
             <textarea
               ref={textareaRef}
               value={content}
               onChange={e => setContent(e.target.value)}
-              placeholder="Memory content..."
+              placeholder={t('memory.create.content_placeholder')}
               className="w-full min-h-[120px] bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-indigo-500/50 transition-colors resize-none overflow-hidden"
               spellCheck={false}
             />
@@ -158,7 +160,7 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
             disabled={saving}
             className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t('memory.create.cancel')}
           </button>
           <button
             onClick={handleCreate}
@@ -168,12 +170,12 @@ export default function CreateMemoryModal({ onClose, onCreated, parentPath, curr
             {saving ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Creating...
+                {t('memory.create.creating')}
               </>
             ) : (
               <>
                 <Plus size={16} />
-                Create Memory
+                {t('memory.create.button')}
               </>
             )}
           </button>

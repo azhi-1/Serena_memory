@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronRight, FileText, Database } from 'lucide-react';
 import clsx from 'clsx';
 import { api } from '../../../lib/api';
+import { useLocale } from '../../../i18n/useLocale';
 
 const TreeNode = ({ domain, path, name, childrenCount, activeDomain, activePath, onNavigate, level }) => {
   const isAncestor = activeDomain === domain && activePath.startsWith(path + '/');
@@ -36,7 +37,7 @@ const TreeNode = ({ domain, path, name, childrenCount, activeDomain, activePath,
     setLoading(true);
     try {
       const res = await api.get('/browse/node', { params: { domain, path, nav_only: true } });
-      setChildren(res.data.children);
+      setChildren(res.data.children || []);
       setFetched(true);
     } catch (err) {
       console.error(err);
@@ -106,6 +107,7 @@ const TreeNode = ({ domain, path, name, childrenCount, activeDomain, activePath,
 };
 
 const DomainNode = ({ domain, rootCount, activeDomain, activePath, onNavigate }) => {
+  const { t } = useLocale();
   const [expanded, setExpanded] = useState(activeDomain === domain);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -135,7 +137,7 @@ const DomainNode = ({ domain, rootCount, activeDomain, activePath, onNavigate })
     setLoading(true);
     try {
       const res = await api.get('/browse/node', { params: { domain, path: '', nav_only: true } });
-      setChildren(res.data.children);
+      setChildren(res.data.children || []);
       setFetched(true);
     } catch (err) {
       console.error(err);
@@ -182,7 +184,7 @@ const DomainNode = ({ domain, rootCount, activeDomain, activePath, onNavigate })
         </div>
         <Database size={16} className={clsx("flex-shrink-0 ml-0.5", isActive ? "text-indigo-400" : "text-slate-500")} />
         <span className="font-medium flex-1 truncate ml-1">
-          {domain.charAt(0).toUpperCase() + domain.slice(1)} Memory
+          {t('memory.sidebar.domain_label', { domain: domain.charAt(0).toUpperCase() + domain.slice(1) })}
         </span>
         {rootCount !== undefined && (
           <span className="text-[10px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-500">{rootCount}</span>

@@ -2,8 +2,10 @@ import React from 'react';
 import { ChevronRight, Folder, FileText, AlertTriangle, Link2, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import PriorityBadge from './PriorityBadge';
+import { useLocale } from '../../../i18n/useLocale';
 
 const NodeGridCard = ({ node, currentDomain, isInBoot, onBootToggle, onClick }) => {
+  const { t } = useLocale();
   const isCrossDomain = node.domain && node.domain !== currentDomain;
 
   const handleBootClick = (e) => {
@@ -46,7 +48,7 @@ const NodeGridCard = ({ node, currentDomain, isInBoot, onBootToggle, onClick }) 
         {/* Boot toggle inline */}
         <div
           onClick={handleBootClick}
-          title={isInBoot ? "Remove from Boot" : "Add to Boot"}
+          title={isInBoot ? t('memory.boot.remove') : t('memory.boot.add')}
           className={clsx(
             "p-1 rounded-md transition-all z-10",
             isInBoot
@@ -74,7 +76,7 @@ const NodeGridCard = ({ node, currentDomain, isInBoot, onBootToggle, onClick }) 
                 {node.content_snippet}
             </p>
         ) : (
-            <p className="text-xs text-slate-700 italic">No preview available</p>
+            <p className="text-xs text-slate-700 italic">{t('memory.card.no_preview')}</p>
         )}
     </div>
 

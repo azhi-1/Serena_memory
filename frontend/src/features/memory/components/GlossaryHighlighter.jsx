@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom';
 import { BookOpen, X } from 'lucide-react';
 import clsx from 'clsx';
+import { useLocale } from '../../../i18n/useLocale';
 
 function findAllOccurrences(text, keywords) {
   if (!keywords || keywords.length === 0 || !text) return [];
@@ -36,6 +37,7 @@ function findAllOccurrences(text, keywords) {
 
 const GlossaryPopup = ({ keyword, nodes, position, onClose, onNavigate }) => {
   const popupRef = useRef(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -91,7 +93,7 @@ const GlossaryPopup = ({ keyword, nodes, position, onClose, onNavigate }) => {
               </code>
               {isUnlinked && (
                 <span className="text-[9px] px-1.5 py-0.5 bg-rose-950/40 text-rose-400 border border-rose-900/50 rounded flex-shrink-0">
-                  Orphaned
+                  {t('memory.card.orphaned')}
                 </span>
               )}
             </div>

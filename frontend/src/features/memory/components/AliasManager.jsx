@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link2, X, Save, Plus, Loader2 } from 'lucide-react';
 import { api, deleteNode, addAlias } from '../../../lib/api';
+import { useLocale } from '../../../i18n/useLocale';
 
 const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
+  const { t } = useLocale();
   const [adding, setAdding] = useState(false);
   const [pathSegments, setPathSegments] = useState([]);   // selected segments: ['nocturne', 'salem']
   const [childrenByLevel, setChildrenByLevel] = useState([[]]); // options at each level
@@ -74,7 +76,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
       await deleteNode(domain, path);
       onUpdate();
     } catch (err) {
-      setError('Failed to remove alias: ' + (err.response?.data?.detail || err.message));
+      setError(t('memory.alias.remove_error', { error: err.response?.data?.detail || err.message }));
     } finally {
       setRemoving(null);
     }
@@ -134,7 +136,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
     <div className="flex items-start gap-2 text-xs text-slate-500">
       <Link2 size={13} className="flex-shrink-0 mt-0.5 text-slate-600" />
       <div className="flex flex-wrap gap-1.5 items-center">
-        <span className="text-slate-600 font-medium">Also reachable via:</span>
+        <span className="text-slate-600 font-medium">{t('memory.alias.label')}</span>
         {aliases.map(alias => (
           <span
             key={alias}
@@ -148,20 +150,20 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
                   disabled={removing === alias}
                   className="text-rose-400 hover:text-rose-300 text-[10px] font-medium transition-colors disabled:opacity-50"
                 >
-                  {removing === alias ? <Loader2 size={9} className="animate-spin" /> : 'yes'}
+                  {removing === alias ? <Loader2 size={9} className="animate-spin" /> : t('memory.alias.confirm_yes')}
                 </button>
                 <button
                   onClick={() => setConfirmRemove(null)}
                   className="text-slate-500 hover:text-slate-300 text-[10px] transition-colors"
                 >
-                  no
+                  {t('memory.alias.confirm_no')}
                 </button>
               </span>
             ) : (
               <button
                 onClick={() => setConfirmRemove(alias)}
                 className="text-slate-600 hover:text-rose-400 transition-colors"
-                title="Remove this alias"
+                title={t('memory.alias.remove_tooltip')}
               >
                 <X size={9} />
               </button>
@@ -182,7 +184,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
                       onChange={e => handleSegmentChange(level, e.target.value)}
                       className="px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
                     >
-                      <option value="">{level === 0 ? '(root)' : '—'}</option>
+                      <option value="">{level === 0 ? t('memory.alias.root_option') : '—'}</option>
                       {options.map(name => (
                         <option key={name} value={name}>{name}</option>
                       ))}
@@ -198,7 +200,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
                 value={leafName}
                 onChange={e => setLeafName(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="name"
+                placeholder={t('memory.alias.name_placeholder')}
                 className="w-24 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
               />
             </div>
@@ -209,7 +211,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
                 value={newDisclosure}
                 onChange={e => setNewDisclosure(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="disclosure..."
+                placeholder={t('memory.alias.disclosure_placeholder')}
                 className="w-48 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] focus:outline-none focus:border-indigo-500/50"
               />
               <input
@@ -218,7 +220,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
                 onChange={e => setNewPriority(parseInt(e.target.value) || 0)}
                 onKeyDown={handleKeyDown}
                 className="w-14 px-1.5 py-0.5 bg-slate-900 border border-indigo-800/40 rounded text-indigo-300 text-[11px] font-mono focus:outline-none focus:border-indigo-500/50"
-                title="priority"
+                title={t('memory.alias.priority')}
               />
               <button
                 onClick={handleAdd}
@@ -237,7 +239,7 @@ const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
             onClick={() => setAdding(true)}
             className="inline-flex items-center gap-0.5 px-1.5 py-0.5 border border-dashed border-slate-700 rounded text-slate-600 hover:text-indigo-400 hover:border-indigo-500/40 transition-colors text-[11px]"
           >
-            <Plus size={9} /> add alias
+            <Plus size={9} /> {t('memory.alias.add')}
           </button>
         )}
       </div>

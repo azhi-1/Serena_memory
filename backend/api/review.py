@@ -10,6 +10,8 @@ data and reverts it exactly as it was, eliminating edge cases from compound AI a
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any, Optional
 
+from locales import t
+from locales.middleware import get_request_locale
 from models import (
     DiffRequest, DiffResponse,
     ChangeGroup, UriDiff,
@@ -519,7 +521,7 @@ async def get_group_diff(node_uuid: str):
 
     rows = ctx.rows_for_node(node_uuid)
     if not rows:
-        raise HTTPException(404, f"No changes for node '{node_uuid}'")
+        raise HTTPException(404, t("api.review.no_changes_for_node").format(node_uuid=node_uuid))
 
     top_table, action = _determine_top_table_and_action(rows)
 
@@ -635,7 +637,7 @@ async def rollback_group(node_uuid: str):
 
     rows = ctx.rows_for_node(node_uuid)
     if not rows:
-        raise HTTPException(404, f"No changes for '{node_uuid}'")
+        raise HTTPException(404, t("api.review.no_changes_for_node").format(node_uuid=node_uuid))
 
     try:
         messages = []
@@ -731,8 +733,7 @@ async def rollback_group(node_uuid: str):
                             messages.append(f"Restored previous memory content ({old_active_mem_id}).")
                         except ValueError as exc:
                             raise RuntimeError(
-                                "Cannot restore previous memory content from "
-                                f"snapshot target {old_active_mem_id}: {exc}"
+                                t("api.review.cannot_restore_memory").format(memory_id=old_active_mem_id, error=exc)
                             ) from exc
 
                 # 5. Revert Glossary Keywords
@@ -790,7 +791,7 @@ async def rollback_group(node_uuid: str):
 
         return GroupRollbackResponse(node_uuid=node_uuid, success=True, message=" ".join(messages))
     except Exception as e:
-        return GroupRollbackResponse(node_uuid=node_uuid, success=False, message=f"Rollback failed: {e}")
+        return GroupRollbackResponse(node_uuid=node_uuid, success=False, message=t("api.review.rollback_failed").format(error=e))
 
 
 @router.delete("/groups/{node_uuid}")
@@ -805,8 +806,8 @@ async def approve_group(node_uuid: str):
     keys = ctx.keys_for_node(node_uuid)
     count = ctx.store.remove_keys(keys)
     if count == 0:
-        raise HTTPException(404, f"No changes for '{node_uuid}'")
-    return {"message": f"Approved node '{node_uuid}' ({count} rows cleared)"}
+        raise HTTPException(404, t("api.review.no_changes_for_node").format(node_uuid=node_uuid))
+    return {"message": t("api.review.approved_node").format(node_uuid=node_uuid, count=count)}
 
 
 @router.delete("")
@@ -815,8 +816,8 @@ async def clear_all():
     store = get_changeset_store()
     count = store.clear_all()
     if count == 0:
-        raise HTTPException(404, "No pending changes")
-    return {"message": f"All changes integrated ({count} row changes cleared)"}
+        raise HTTPException(404, t("api.review.no_pending_changes"))
+    return {"message": t("api.review.all_integrated").format(count=count)}
 
 
 @router.get("/deprecated")
@@ -833,9 +834,12 @@ async def permanently_delete_memory(memory_id: int):
     graph = get_graph_service()
     try:
         await graph.permanently_delete_memory(memory_id)
-        return {"message": f"Memory {memory_id} permanently deleted"}
+        return {"message": t("api.review.memory_deleted").format(memory_id=memory_id)}
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        locale = get_request_locale()
+        if locale == "en":
+            raise HTTPException(404, str(e))
+        raise HTTPException(404, t("api.review.graph_error", locale=locale))
 
 
 @router.post("/diff", response_model=DiffResponse)

@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { getGroups, getGroupDiff, rollbackGroup, approveGroup, clearAll } from '../../lib/api';
 import SnapshotList from '../../components/SnapshotList';
 import DiffViewer from '../../components/DiffViewer';
+import { toast } from '../../components/Toast';
+import ConfirmModal from '../../components/ConfirmModal';
 import {
   Activity,
   Check,
@@ -16,13 +18,16 @@ import {
   BookOpen
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useLocale } from '../../i18n/useLocale';
 
 function ReviewPage() {
+  const { t } = useLocale();
   const [changes, setChanges] = useState([]);
   const [selectedChange, setSelectedChange] = useState(null);
   const [diffData, setDiffData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [diffError, setDiffError] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
 
   const diffRequestRef = useRef(0);
 
@@ -32,7 +37,7 @@ function ReviewPage() {
     setLoading(true);
     try {
       const list = await getGroups();
-      setChanges(list);
+      setChanges(Array.isArray(list) ? list : []);
       if (selectedChange && !list.find(c => c.node_uuid === selectedChange.node_uuid)) {
         setSelectedChange(list.length > 0 ? list[0] : null);
       } else if (list.length > 0 && !selectedChange) {
@@ -44,7 +49,7 @@ function ReviewPage() {
       }
       return list;
     } catch {
-      setDiffError("Disconnected from Neural Core (Backend offline).");
+      setDiffError(t('review.error.disconnected'));
       return [];
     } finally {
       setLoading(false);
@@ -66,28 +71,37 @@ function ReviewPage() {
       if (requestId === diffRequestRef.current) setDiffData(data);
     } catch (err) {
       if (requestId === diffRequestRef.current) {
-        setDiffError(err.response?.data?.detail || "Failed to retrieve memory fragment.");
+        setDiffError(err.response?.data?.detail || t('review.error.retrieve_failed'));
         setDiffData(null);
       }
     }
   };
 
-  const handleRollback = async () => {
+  const handleRollback = () => {
     if (!selectedChange) return;
-    if (!confirm(`Reject changes for node group ${selectedChange.display_uri}? This will revert the memory state.`)) return;
-    try {
-      const res = await rollbackGroup(selectedChange.node_uuid);
-      if (res && res.success === false) {
-        throw new Error(res.message || "Unknown error during rollback");
-      }
-      const list = await loadChanges();
-      if (list.find(c => c.node_uuid === selectedChange.node_uuid)) {
-        await loadDiff(selectedChange.node_uuid);
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.message;
-      alert("Rejection failed: " + errorMsg);
-    }
+    setConfirmState({
+      title: t('review.confirm.reject_title'),
+      message: t('review.confirm.reject_message', { uri: selectedChange.display_uri }),
+      variant: "danger",
+      confirmLabel: t('review.confirm.reject_label'),
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          const res = await rollbackGroup(selectedChange.node_uuid);
+          if (res && res.success === false) {
+            throw new Error(res.message || t('review.error.unknown_rollback'));
+          }
+          const list = await loadChanges();
+          if (list.find(c => c.node_uuid === selectedChange.node_uuid)) {
+            await loadDiff(selectedChange.node_uuid);
+          }
+        } catch (err) {
+          const errorMsg = err.response?.data?.detail || err.message;
+          toast(t('review.toast.rejection_failed', { error: errorMsg }), "error");
+        }
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
   const handleApprove = async () => {
@@ -96,20 +110,29 @@ function ReviewPage() {
       await approveGroup(selectedChange.node_uuid);
       await loadChanges();
     } catch (err) {
-      alert("Integration failed: " + err.message);
+      toast(t('review.toast.integration_failed', { error: err.message }), "error");
     }
   };
 
-  const handleClearAll = async () => {
-    if (!confirm("Integrate ALL pending memories?")) return;
-    try {
-      await clearAll();
-      setChanges([]);
-      setSelectedChange(null);
-      setDiffData(null);
-    } catch (err) {
-      alert("Mass integration failed: " + err.message);
-    }
+  const handleClearAll = () => {
+    setConfirmState({
+      title: t('review.confirm.integrate_all_title'),
+      message: t('review.confirm.integrate_all_message'),
+      variant: "default",
+      confirmLabel: t('review.confirm.integrate_all_label'),
+      onConfirm: async () => {
+        setConfirmState(null);
+        try {
+          await clearAll();
+          setChanges([]);
+          setSelectedChange(null);
+          setDiffData(null);
+        } catch (err) {
+          toast(t('review.toast.mass_integration_failed', { error: err.message }), "error");
+        }
+      },
+      onCancel: () => setConfirmState(null),
+    });
   };
 
   const renderMetadataChanges = () => {
@@ -138,7 +161,7 @@ function ReviewPage() {
     return (
       <div className="mb-8 p-4 bg-slate-900/40 border border-slate-800/60 rounded-lg backdrop-blur-sm">
         <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2 tracking-widest">
-          <Activity size={12} /> Edge Metadata {isCreation ? "(Initial)" : isDeletion ? "(Removed)" : allPreserved ? "(Preserved)" : "Shifts"}
+          <Activity size={12} /> {t('review.metadata.title')} {isCreation ? t('review.metadata.initial') : isDeletion ? t('review.metadata.removed') : allPreserved ? t('review.metadata.preserved') : t('review.metadata.shifts')}
         </h3>
         <div className="space-y-3">
           {diffs.map(key => {
@@ -199,8 +222,8 @@ function ReviewPage() {
               <ShieldCheck className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold tracking-tight text-sm">Global Review</span>
-              <span className="text-[10px] text-indigo-400/70 uppercase tracking-widest font-medium">All Namespaces</span>
+              <span className="font-bold tracking-tight text-sm">{t('review.sidebar.title')}</span>
+              <span className="text-[10px] text-indigo-400/70 uppercase tracking-widest font-medium">{t('review.sidebar.subtitle')}</span>
             </div>
           </div>
         </div>
@@ -226,7 +249,7 @@ function ReviewPage() {
               className="w-full group flex items-center justify-center gap-2 bg-slate-800/50 hover:bg-emerald-900/20 text-slate-400 hover:text-emerald-400 border border-slate-700 hover:border-emerald-800/50 rounded-md py-2.5 text-xs font-medium transition-all duration-300"
             >
               <Check size={14} className="group-hover:scale-110 transition-transform" />
-              <span>Integrate All</span>
+              <span>{t('review.action.integrate_all')}</span>
             </button>
           </div>
         )}
@@ -252,16 +275,16 @@ function ReviewPage() {
                     <span>{selectedChange.display_uri}</span>
                     {selectedChange.namespaces && selectedChange.namespaces.length > 0 && selectedChange.namespaces.some(ns => ns !== "" || selectedChange.namespaces.length > 1) && (
                       <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 tracking-widest font-mono uppercase">
-                        {selectedChange.namespaces.map(ns => ns === "" ? "default" : ns).join(', ')}
+                        {selectedChange.namespaces.map(ns => ns === "" ? t('review.namespace.default') : ns).join(', ')}
                       </span>
                     )}
                   </h2>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <span className="bg-slate-800/50 px-1.5 py-0.5 rounded text-slate-400 capitalize">
-                      {selectedChange.top_level_table} {selectedChange.action || 'modified'}
+                      {selectedChange.top_level_table} {selectedChange.action || t('review.badge.modified')}
                     </span>
                     <span className="text-slate-600">
-                      ({selectedChange.row_count} rows affected)
+                      ({t('review.badge.rows_affected', { count: selectedChange.row_count })})
                     </span>
                   </div>
                 </div>
@@ -272,13 +295,13 @@ function ReviewPage() {
                   onClick={handleRollback}
                   className="flex items-center gap-2 px-5 py-2 bg-slate-900 hover:bg-rose-950/30 border border-slate-700 hover:border-rose-800 text-slate-400 hover:text-rose-400 rounded-md transition-all duration-200 text-xs font-medium uppercase tracking-wider"
                 >
-                  <RotateCcw size={14} /> Reject Group
+                  <RotateCcw size={14} /> {t('review.action.reject_group')}
                 </button>
                 <button
                   onClick={handleApprove}
                   className="flex items-center gap-2 px-6 py-2 bg-indigo-600/10 hover:bg-indigo-500/20 border border-indigo-500/30 hover:border-indigo-500/50 text-indigo-300 hover:text-indigo-200 rounded-md transition-all duration-200 text-xs font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(99,102,241,0.1)] hover:shadow-[0_0_20px_rgba(99,102,241,0.2)]"
                 >
-                  <Check size={14} /> Integrate Group
+                  <Check size={14} /> {t('review.action.integrate_group')}
                 </button>
               </div>
             </div>
@@ -292,14 +315,14 @@ function ReviewPage() {
                       <Activity size={32} />
                     </div>
                     <div className="text-center">
-                      <p className="text-lg font-medium text-rose-200">Memory Retrieval Failed</p>
+                      <p className="text-lg font-medium text-rose-200">{t('review.error.retrieval_failed_title')}</p>
                       <p className="text-rose-400/60 mt-2 max-w-md text-sm">{diffError}</p>
                     </div>
                     <button
                       onClick={() => loadDiff(selectedChange.node_uuid)}
                       className="px-6 py-2 bg-slate-800/50 hover:bg-slate-800 rounded-full text-slate-300 text-xs transition-colors border border-slate-700"
                     >
-                      Retry Connection
+                      {t('review.action.retry')}
                     </button>
                   </div>
                 ) : diffData ? (
@@ -315,32 +338,32 @@ function ReviewPage() {
                               ? "bg-amber-500/5 border-amber-500/20 text-amber-500"
                               : "bg-slate-800/50 border-slate-700 text-slate-500"
                       )}>
-                        {diffData.action === 'deleted' ? "Deletion Detected" 
-                          : diffData.action === 'created' ? "Creation Detected" 
-                          : (diffData.has_changes || diffData.path_changes?.length > 0 || diffData.glossary_changes?.length > 0) ? "Modification Detected" 
-                          : "No Content Deviation"}
+                        {diffData.action === 'deleted' ? t('review.diff_status.deletion_detected') 
+                          : diffData.action === 'created' ? t('review.diff_status.creation_detected') 
+                          : (diffData.has_changes || diffData.path_changes?.length > 0 || diffData.glossary_changes?.length > 0) ? t('review.diff_status.modification_detected') 
+                          : t('review.diff_status.no_deviation')}
                       </div>
                     </div>
 
                     {diffData.path_changes && diffData.path_changes.length > 0 && (
                       <div className="mb-8 p-4 bg-slate-900/40 border border-slate-800/60 rounded-lg backdrop-blur-sm">
                         <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2 tracking-widest">
-                          <Database size={12} /> Path Modifications
+                          <Database size={12} /> {t('review.path_modifications.title')}
                         </h3>
                         <div className="space-y-2">
                           {diffData.path_changes.map((pc, i) => (
                             <div key={i} className="flex items-center gap-3 text-sm">
                               {pc.action === 'deleted' ? (
-                                <span className="text-rose-500/80 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Removed</span>
+                                <span className="text-rose-500/80 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">{t('review.path.removed')}</span>
                               ) : (
-                                <span className="text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Added</span>
+                                <span className="text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">{t('review.path.added')}</span>
                               )}
                               <span className={clsx("font-mono text-xs break-all", pc.action === 'deleted' ? "text-rose-400/70 line-through" : "text-emerald-400")}>
                                 {pc.uri}
                               </span>
                               {pc.namespace !== undefined && pc.namespace !== null && (pc.namespace !== "" || (selectedChange.namespaces && selectedChange.namespaces.some(n => n !== "" || selectedChange.namespaces.length > 1))) && (
-                                <span className="ml-auto text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 tracking-wider font-mono">
-                                  {pc.namespace === "" ? "default" : pc.namespace}
+                                    <span className="ml-auto text-[10px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 tracking-wider font-mono">
+                                      {pc.namespace === "" ? t('review.namespace.default') : pc.namespace}
                                 </span>
                               )}
                             </div>
@@ -348,7 +371,7 @@ function ReviewPage() {
                         </div>
                         {diffData.active_paths && diffData.active_paths.length > 0 && (
                           <div className="mt-4 pt-4 border-t border-slate-800/50">
-                            <span className="text-xs text-slate-500 block mb-2">Node remains accessible at:</span>
+                            <span className="text-xs text-slate-500 block mb-2">{t('review.path.accessible_at')}</span>
                             <div className="flex flex-wrap gap-2">
                               {diffData.active_paths.map((uri, i) => (
                                 <span key={i} className="flex items-center gap-2 text-xs font-mono text-indigo-300 bg-indigo-900/10 border border-indigo-500/20 px-2 py-1 rounded">
@@ -357,7 +380,7 @@ function ReviewPage() {
                                     .filter(ns => ns !== "" || diffData.path_namespaces[uri].length > 1 || (selectedChange.namespaces && selectedChange.namespaces.some(n => n !== "" || selectedChange.namespaces.length > 1)))
                                     .map((ns, nsIdx) => (
                                     <span key={nsIdx} className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                      {ns === "" ? "default" : ns}
+                                      {ns === "" ? t('review.namespace.default') : ns}
                                     </span>
                                   ))}
                                 </span>
@@ -371,15 +394,15 @@ function ReviewPage() {
                     {diffData.glossary_changes && diffData.glossary_changes.length > 0 && (
                       <div className="mb-8 p-4 bg-slate-900/40 border border-slate-800/60 rounded-lg backdrop-blur-sm">
                         <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 flex items-center gap-2 tracking-widest">
-                          <BookOpen size={12} /> Glossary Keywords
+                          <BookOpen size={12} /> {t('review.glossary.title')}
                         </h3>
                         <div className="space-y-2">
                           {diffData.glossary_changes.map((gc, i) => (
                             <div key={i} className="flex items-center gap-3 text-sm">
                               {gc.action === 'deleted' ? (
-                                <span className="text-rose-500/80 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Removed</span>
+                                <span className="text-rose-500/80 bg-rose-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">{t('review.path.removed')}</span>
                               ) : (
-                                <span className="text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Added</span>
+                                <span className="text-emerald-500/80 bg-emerald-500/10 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">{t('review.path.added')}</span>
                               )}
                               <span className={clsx("font-mono text-xs break-all", gc.action === 'deleted' ? "text-rose-400/70 line-through" : "text-emerald-400")}>
                                 {gc.keyword}
@@ -405,7 +428,7 @@ function ReviewPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-700">
                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping mb-4"></div>
-                    <span className="text-xs tracking-widest uppercase opacity-50">Synchronizing...</span>
+                    <span className="text-xs tracking-widest uppercase opacity-50">{t('review.status.synchronizing')}</span>
                   </div>
                 )}
               </div>
@@ -414,7 +437,7 @@ function ReviewPage() {
         ) : diffError ? (
           <div className="flex-1 flex flex-col items-center justify-center text-rose-500 gap-4">
             <Activity size={48} className="opacity-20" />
-            <p className="text-sm font-medium opacity-50">Connection Lost</p>
+            <p className="text-sm font-medium opacity-50">{t('review.status.connection_lost')}</p>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-slate-700 gap-6 select-none">
@@ -423,12 +446,13 @@ function ReviewPage() {
               <Layout size={64} className="opacity-20 relative z-10" />
             </div>
             <div className="text-center">
-              <p className="text-lg font-light text-slate-500">Awaiting Input</p>
-              <p className="text-xs text-slate-600 mt-2 tracking-wide uppercase">Select a memory fragment to inspect</p>
+              <p className="text-lg font-light text-slate-500">{t('review.empty.awaiting_input')}</p>
+              <p className="text-xs text-slate-600 mt-2 tracking-wide uppercase">{t('review.empty.select_memory')}</p>
             </div>
           </div>
         )}
       </div>
+      {confirmState && <ConfirmModal {...confirmState} />}
     </div>
   );
 }

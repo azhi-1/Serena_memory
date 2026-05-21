@@ -3,7 +3,9 @@ import {
   Plus, CheckCircle, XCircle, RefreshCw, TestTube, FolderOpen
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
 import { testDatabase, createDatabase, openDbFolder } from '../../lib/api';
+import { toast } from '../../components/Toast';
 
 function parseSqlitePathFromUrl(url) {
   if (!url || !url.includes('sqlite')) return '';
@@ -12,6 +14,7 @@ function parseSqlitePathFromUrl(url) {
 }
 
 export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, onSave }) {
+  const { t } = useTranslation();
   const currentUrl = settings?.database_url || '';
   const isSqliteCurrent = currentUrl.includes('sqlite');
 
@@ -71,7 +74,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
       if (result.success) {
         await onSave({ database_url: url });
         setDirty(false);
-        setTestResult({ success: true, message: 'Connected & saved. Restart server to apply.' });
+        setTestResult({ success: true, message: t('settings.database.connected_saved') });
         onRefreshStatus();
       } else {
         setTestResult(result);
@@ -94,7 +97,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
       setSqlitePath(parseSqlitePathFromUrl(result.database_url));
       setDirty(true);
       setNewDbPath('');
-      setTestResult({ success: true, message: `Created. Click "Test & Save" to switch to this database.` });
+      setTestResult({ success: true, message: t('settings.database.created_switch') });
     } catch (e) {
       setTestResult({ success: false, message: e.response?.data?.detail || e.message });
     } finally {
@@ -106,7 +109,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
     try {
       await openDbFolder();
     } catch (e) {
-      alert(e.response?.data?.detail || e.message);
+      toast(e.response?.data?.detail || e.message, "error");
     }
   };
 
@@ -116,18 +119,18 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
       {dbStatus && (
         <div className="bg-slate-900 border border-slate-700/50 shadow-sm rounded-lg p-3 text-sm space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Type</span>
-            <span className="text-slate-200 font-medium">{dbStatus.type === 'sqlite' ? 'SQLite' : 'PostgreSQL'}</span>
+            <span className="text-slate-400">{t('settings.database.type_label')}</span>
+            <span className="text-slate-200 font-medium">{dbStatus.type === 'sqlite' ? t('settings.database.sqlite') : t('settings.database.postgresql')}</span>
           </div>
           {dbStatus.type === 'sqlite' && dbStatus.path && (
             <>
               <div className="flex items-center justify-between gap-4">
-                <span className="text-slate-400 flex-shrink-0">Path</span>
+                <span className="text-slate-400 flex-shrink-0">{t('settings.database.path_label')}</span>
                 <span className="text-slate-300 font-mono text-xs truncate max-w-[380px]" title={dbStatus.path}>{dbStatus.path}</span>
               </div>
               {dbStatus.size_display && (
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Size</span>
+                  <span className="text-slate-400">{t('settings.database.size_label')}</span>
                   <span className="text-slate-200">{dbStatus.size_display}</span>
                 </div>
               )}
@@ -135,18 +138,18 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
           )}
           {dbStatus.type === 'postgresql' && dbStatus.url_masked && (
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">URL</span>
+              <span className="text-slate-400">{t('settings.database.url_label')}</span>
               <span className="text-slate-300 font-mono text-xs">{dbStatus.url_masked}</span>
             </div>
           )}
           <div className="flex items-center justify-end gap-3 pt-1">
             {dbStatus.type === 'sqlite' && dbStatus.path && (
               <button onClick={handleOpenFolder} className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1 transition-colors">
-                <FolderOpen size={11} /> Open folder
+                <FolderOpen size={11} /> {t('settings.database.open_folder')}
               </button>
             )}
             <button onClick={onRefreshStatus} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <RefreshCw size={11} /> Refresh
+              <RefreshCw size={11} /> {t('settings.database.refresh')}
             </button>
           </div>
         </div>
@@ -154,11 +157,11 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
 
       {/* Mode toggle */}
       <div className="space-y-2">
-        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Database Type</label>
+        <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">{t('settings.database.type_selector_label')}</label>
         <div className="flex rounded-lg overflow-hidden border border-slate-700 w-fit">
           {[
-            { id: 'sqlite', label: 'SQLite' },
-            { id: 'postgresql', label: 'PostgreSQL' },
+            { id: 'sqlite', label: t('settings.database.sqlite') },
+            { id: 'postgresql', label: t('settings.database.postgresql') },
           ].map(opt => (
             <button
               key={opt.id}
@@ -179,14 +182,14 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
       {/* Connection input */}
       <div className="space-y-2">
         <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">
-          {mode === 'sqlite' ? 'Database File Path' : 'Connection URL'}
+          {mode === 'sqlite' ? t('settings.database.file_path_label') : t('settings.database.connection_url_label')}
         </label>
         {mode === 'sqlite' ? (
           <input
             type="text"
             value={sqlitePath}
             onChange={e => { setSqlitePath(e.target.value); setDirty(true); setTestResult(null); }}
-            placeholder="C:/Users/me/data/memory.db"
+            placeholder={t('settings.database.sqlite_placeholder')}
             className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
           />
         ) : (
@@ -194,7 +197,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
             type="text"
             value={pgUrl}
             onChange={e => { setPgUrl(e.target.value); setDirty(true); setTestResult(null); }}
-            placeholder="postgresql+asyncpg://user:pass@host:5432/dbname"
+            placeholder={t('settings.database.pg_placeholder')}
             className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
           />
         )}
@@ -206,7 +209,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
             className="mt-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-lg text-sm flex items-center gap-1.5 transition-colors"
           >
             <TestTube size={14} />
-            {busy ? 'Testing...' : (dirty ? 'Test & Save' : 'Test Connection')}
+            {busy ? t('settings.database.testing') : (dirty ? t('settings.database.test_save') : t('settings.database.test_connection'))}
           </button>
         )}
 
@@ -221,15 +224,15 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
       {/* Create new SQLite DB */}
       {mode === 'sqlite' && (
         <div className="space-y-2 pt-2 border-t border-slate-800/50">
-          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">Create New Database</label>
-          <p className="text-xs text-slate-500">Enter a file path. The file and parent folders will be created automatically.</p>
+          <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider">{t('settings.database.create_new_label')}</label>
+          <p className="text-xs text-slate-500">{t('settings.database.create_new_desc')}</p>
           <div className="flex gap-2">
             <input
               type="text"
               value={newDbPath}
               onChange={e => setNewDbPath(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
-              placeholder="C:/Users/me/data/new_memory.db"
+              placeholder={t('settings.database.new_db_placeholder')}
               className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-lg px-3 py-2 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-inner"
             />
             <button
@@ -238,7 +241,7 @@ export default function DatabaseSection({ settings, dbStatus, onRefreshStatus, o
               className="px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-200 rounded-lg text-sm flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
               <Plus size={14} />
-              {creating ? 'Creating...' : 'Create'}
+              {creating ? t('settings.database.creating') : t('settings.database.create')}
             </button>
           </div>
         </div>

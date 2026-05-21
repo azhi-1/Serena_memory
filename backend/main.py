@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from api import review_router, browse_router, maintenance_router, settings_router
 from auth import BearerTokenAuthMiddleware, get_cors_config
 from namespace_middleware import NamespaceMiddleware
+from locales.middleware import LocaleMiddleware
 from db import get_db_manager, close_db
 from health import router as health_router
 import argparse
@@ -56,6 +57,8 @@ app.add_middleware(
     BearerTokenAuthMiddleware,
     excluded_paths=["/health"],
 )
+
+app.add_middleware(LocaleMiddleware)
 
 app.add_middleware(NamespaceMiddleware)
 

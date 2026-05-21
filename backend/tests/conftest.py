@@ -74,6 +74,7 @@ async def isolated_test_environment(tmp_path, monkeypatch):
         "web_port": 8233,
         "auto_open_browser": False,
         "api_token": None,
+        "locale": "en",
     }))
     monkeypatch.setattr(config, "CONFIG_PATH", test_config_path)
     config._invalidate()

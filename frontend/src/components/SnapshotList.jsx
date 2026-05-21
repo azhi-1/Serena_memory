@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
 
 const getActionColor = (action) => {
   if (action === 'created') return 'emerald';
@@ -7,14 +8,13 @@ const getActionColor = (action) => {
   return 'amber'; // modified
 };
 
-const getActionLabel = (table, action) => {
+const getActionLabel = (table, action, t) => {
   let entityName = table;
   if (table === 'memories') entityName = 'Memory';
   else if (table.endsWith('s')) entityName = table.slice(0, -1);
-  
   const capitalizedEntity = entityName.charAt(0).toUpperCase() + entityName.slice(1);
-  const capitalizedAction = action ? action.charAt(0).toUpperCase() + action.slice(1) : 'Modified';
-  return `${capitalizedEntity} ${capitalizedAction}`;
+  const actionKey = action || 'modified';
+  return `${capitalizedEntity} ${t(`snapshot.action_${actionKey}`)}`;
 };
 
 const COLOR_CLASSES = {
@@ -36,27 +36,29 @@ const COLOR_CLASSES = {
 };
 
 const SnapshotList = ({ snapshots, selectedId, onSelect }) => {
+  const { t } = useTranslation();
+  const snaps = Array.isArray(snapshots) ? snapshots : [];
   const getNamespacesLabel = (namespaces) => {
     if (!namespaces || namespaces.length === 0) return null;
     if (namespaces.length === 1 && namespaces[0] === "") return null;
     return namespaces.map(ns => ns === "" ? "default" : ns).join(", ");
   };
 
-  if (snapshots.length === 0) {
+  if (snaps.length === 0) {
     return (
       <div className="text-center py-10 text-slate-600 text-xs tracking-wide uppercase">
-        Empty Sequence
+        {t('snapshot.empty_sequence')}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col">
-      {snapshots.map((item) => {
+      {snaps.map((item) => {
         const isSelected = item.node_uuid === selectedId;
         const colorName = getActionColor(item.action);
         const colors = COLOR_CLASSES[colorName];
-        const labelText = getActionLabel(item.top_level_table, item.action);
+        const labelText = getActionLabel(item.top_level_table, item.action, t);
 
         return (
           <button
@@ -100,7 +102,7 @@ const SnapshotList = ({ snapshots, selectedId, onSelect }) => {
                   </span>
                   {item.row_count > 1 && (
                     <span className="text-[9px] text-slate-600">
-                      {item.row_count} rows
+                      {t('snapshot.rows', { count: item.row_count })}
                     </span>
                   )}
                 </div>
