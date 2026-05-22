@@ -26,7 +26,11 @@
     "error": {
       "connection_refused": "Cannot connect to backend service (Connection Refused)",
       "retry": "Retry",
-      "troubleshooting": "Please check the following:"
+      "troubleshooting": "Please check the following:",
+      "check_backend": "Is the backend process running?",
+      "check_port_title": "Port mismatch? ",
+      "check_port_detail": "Check that web_port in config.json matches the port used by the frontend.",
+      "check_docker": "If using Docker, check the port mapping in docker-compose.yml."
     },
     "loading": {
       "connecting": "Connecting to Memory Core..."
@@ -54,7 +58,8 @@
       "restart_warning": "Server restart required for changes to take effect.",
       "saving": "Saving...",
       "save": "Save",
-      "save_failed": "Save failed"
+      "save_failed": "Save failed",
+      "invalid_port": "Invalid port number"
     },
     "database": {
       "type_label": "Type",

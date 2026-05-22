@@ -23,7 +23,7 @@ export default function ServerSection({ settings, configPath, lockedFields = [],
       if (!isLocked('web_port')) {
         const parsedPort = parseInt(port, 10);
         if (isNaN(parsedPort)) {
-          toast(t('settings.server.save_failed') + ': Invalid port number', "error");
+          toast(t('settings.server.invalid_port'), "error");
           setSaving(false);
           return;
         }

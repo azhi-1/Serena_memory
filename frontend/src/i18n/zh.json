@@ -24,7 +24,11 @@
     "error": {
       "connection_refused": "无法连接到后端服务 (Connection Refused)",
       "retry": "重试",
-      "troubleshooting": "请检查以下几项配置："
+      "troubleshooting": "请检查以下几项配置：",
+      "check_backend": "后端进程是否正在运行？",
+      "check_port_title": "端口配置是否一致？",
+      "check_port_detail": "请检查 config.json 中的 web_port 是否与前端请求的端口一致。",
+      "check_docker": "如果你在使用 Docker，请检查 docker-compose.yml 中的端口映射。"
     },
     "loading": {
       "connecting": "正在连接记忆核心..."
@@ -50,7 +54,8 @@
       "restart_warning": "点击保存后，需要重启服务器进程才能生效。",
       "saving": "保存中...",
       "save": "保存",
-      "save_failed": "保存失败"
+      "save_failed": "保存失败",
+      "invalid_port": "无效的端口号"
     },
     "database": {
       "type_label": "类型",

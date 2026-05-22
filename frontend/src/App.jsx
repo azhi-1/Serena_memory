@@ -291,9 +291,9 @@ function App() {
         <div className="text-sm text-slate-500 max-w-md text-center mt-2 space-y-2">
           <p>{t('app.error.troubleshooting')}</p>
           <ul className="list-disc text-left pl-6 space-y-1">
-            <li>后端进程是否正在运行？</li>
-            <li><strong>端口配置是否一致？</strong>请检查 <code className="bg-slate-800 px-1 rounded text-slate-300">config.json</code> 中的 <code className="bg-slate-800 px-1 rounded text-slate-300">web_port</code> 是否与前端请求的端口一致。</li>
-            <li>如果你在使用 Docker，请检查 <code className="bg-slate-800 px-1 rounded text-slate-300">docker-compose.yml</code> 中的端口映射。</li>
+            <li>{t('app.error.check_backend')}</li>
+            <li><strong>{t('app.error.check_port_title')}</strong>{t('app.error.check_port_detail')}</li>
+            <li>{t('app.error.check_docker')}</li>
           </ul>
         </div>
         <button
