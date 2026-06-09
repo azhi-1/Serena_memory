@@ -242,7 +242,7 @@ def _load() -> dict:
             )
 
         try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(CONFIG_PATH, "r", encoding="utf-8-sig") as f:
                 _cache = json.load(f)
         except json.JSONDecodeError as e:
             if _IN_DOCKER:
