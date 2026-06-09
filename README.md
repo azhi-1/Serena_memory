@@ -35,6 +35,20 @@ This protects the main conversation cache from being flooded by memory recall.
 
 Boot memory is separate: `read_memory("system://boot")` reads configured boot URIs. Keep boot memories short and stable.
 
+Cache protection is a baseline requirement:
+
+- Keep boot memory short, stable, and cache-friendly.
+- Treat `recall_memory(token_budget=2000)` as the default recall path for topic-specific context.
+- Do not put long biographies, full chat history, game logs, or large summaries directly into boot memory.
+- Store long-lived detail in ordinary memories or remote summaries, then recall it semantically when needed.
+- A good boot target is roughly 1200-1800 tokens total across all boot URIs.
+
+In practice:
+
+- `system://boot` = identity anchor and operating rules.
+- `recall_memory` = topic-specific memory package.
+- `plan_consolidation` / `create_remote_summary` = long-term compression workflow.
+
 ## Namespace Strategy
 
 Use namespaces to isolate memory spaces:
@@ -55,6 +69,77 @@ In HTTP/SSE mode, use:
 ?namespace=rimworld
 X-Namespace: rimworld
 ```
+
+Recommended namespace layout:
+
+- default namespace: Serena's normal persona, user, relationship, and assistant memory
+- `rimworld`: RimWorld game memory
+- future game namespaces: one namespace per game or campaign
+
+Do not mix game session facts into Serena's default persona memory unless they should permanently affect the assistant outside the game.
+
+## Runtime Deployment Strategy
+
+Recommended first deployment: run Serena Memory locally on Windows.
+
+Do not use the 1GB RAM / 10GB storage VPS as the primary memory host yet. The VPS is already running network proxy and `tt-sync`, and the memory database is private, high-value state. Keep the main SQLite database local until remote access is genuinely required.
+
+Preferred local service command:
+
+```powershell
+cd C:\Users\pc\Desktop\workplace\Serena_memory
+.\.venv\Scripts\python.exe backend\run_sse.py
+```
+
+Default local service:
+
+```text
+http://127.0.0.1:8233
+```
+
+Use the VPS later only as a reverse proxy or tunnel endpoint if needed. Do not expose Serena Memory publicly without an API token and transport security review.
+
+## Persona And Boot Memory
+
+Persona should be split into two layers:
+
+1. Client system prompt: short operating protocol.
+2. Serena Memory boot nodes: durable identity and relationship state.
+
+The client prompt should say only the minimum needed:
+
+- read `system://boot` at session start
+- use `recall_memory` for topic-specific recall
+- write important durable facts back into memory
+- keep boot memory small
+
+Recommended default boot nodes:
+
+```text
+core://agent
+core://my_user
+core://agent/my_user
+```
+
+Useful additional non-boot nodes:
+
+```text
+core://agent/memory_policy
+core://agent/interaction_style
+core://agent/tool_policy
+```
+
+For RimWorld, use the `rimworld` namespace and game-domain nodes such as:
+
+```text
+game://rimworld/colony
+game://rimworld/story_so_far
+game://rimworld/current_goals
+game://rimworld/rules
+game://rimworld/npcs
+```
+
+Game nodes can be consolidated into remote summaries over time, but near memories should not be deleted or archived automatically.
 
 ## Setup
 
