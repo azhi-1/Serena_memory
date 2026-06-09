@@ -1,4 +1,4 @@
-"""
+﻿"""
 Browse API - Clean URI-based memory navigation
 
 This replaces the old Entity/Relation/Chapter conceptual split with a simple
@@ -174,7 +174,7 @@ async def remove_domain(domain: str):
 
 @router.get("/node")
 async def get_node(
-    path: str = Query("", description="URI path like 'nocturne' or 'nocturne/salem'"),
+    path: str = Query("", description="URI path like 'Serena' or 'Serena/salem'"),
     domain: str = Query("core"),
     nav_only: bool = Query(False, description="Skip expensive processing if only navigating tree")
 ):

@@ -1,5 +1,5 @@
-"""
-SillyTavern 角色卡 -> Nocturne Memory 导入工具
+﻿"""
+SillyTavern 角色卡 -> Serena Memory 导入工具
 
 从酒馆角色卡 PNG 中提取角色数据，清洗前端代码，
 通过 MCP stdio 接口直接调用 create_memory 注入到 narrative:// domain。
@@ -387,7 +387,7 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="SillyTavern 角色卡 -> Nocturne Memory 导入工具",
+        description="SillyTavern 角色卡 -> Serena Memory 导入工具",
     )
     parser.add_argument("png_path", help="角色卡 PNG 文件路径")
     parser.add_argument(

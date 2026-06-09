@@ -1,9 +1,9 @@
-{
+﻿{
   "_comment": "Key naming: {section}.{component}.{key}. Example: 'app.nav.review' for Review & Audit nav link. English is canonical.",
 
   "app": {
     "nav": {
-      "brand": "Nocturne Admin",
+      "brand": "Serena Admin",
       "review": "Review & Audit",
       "memory": "Memory Explorer",
       "maintenance": "Brain Cleanup",
@@ -11,7 +11,7 @@
     },
     "settings": {
       "title": "Settings",
-      "subtitle": "Manage your Nocturne Memory instance configuration.",
+      "subtitle": "Manage your Serena Memory instance configuration.",
       "tab_general": "General",
       "tab_database": "Database",
       "tab_memory": "Memory",
@@ -39,7 +39,7 @@
   },
 
   "auth": {
-    "title": "Nocturne Admin",
+    "title": "Serena Admin",
     "subtitle": "Memory Dashboard",
     "token_label": "API Token",
     "token_placeholder": "Enter your API Token...",
@@ -47,7 +47,7 @@
     "verifying": "Verifying...",
     "invalid_token": "Invalid token, please try again",
     "network_error": "Connection failed, please check server status",
-    "footer": "Nocturne Memory"
+    "footer": "Serena Memory"
   },
 
   "settings": {

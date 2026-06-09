@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-Nocturne Desktop Pet - Speech Bubble + TTS
+Serena Desktop Pet - Speech Bubble + TTS
 Standalone script: shows a transparent overlay bubble, plays TTS, exits.
 
 Usage:
@@ -132,10 +132,10 @@ def _mci_send(command: str) -> int:
 def play_audio_blocking(path: str):
     """Play an audio file using Windows MCI. Blocks until playback finishes."""
     abs_path = os.path.abspath(path).replace("\\", "/")
-    _mci_send("close nocturne_voice")
-    _mci_send(f'open "{abs_path}" type mpegvideo alias nocturne_voice')
-    _mci_send("play nocturne_voice wait")
-    _mci_send("close nocturne_voice")
+    _mci_send("close Serena_voice")
+    _mci_send(f'open "{abs_path}" type mpegvideo alias Serena_voice')
+    _mci_send("play Serena_voice wait")
+    _mci_send("close Serena_voice")
 
 
 # ============================================================

@@ -1,7 +1,7 @@
-# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportOperatorIssue=false
+﻿# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportOperatorIssue=false
 
 """
-FTS Search Indexer and Query Engine for Nocturne Memory System.
+FTS Search Indexer and Query Engine for Serena Memory System.
 
 Maintains derived search rows (search_documents / search_documents_fts)
 and provides full-text search across the memory graph.
@@ -378,6 +378,7 @@ class SearchIndexer:
                 seen_nodes.add(row["node_uuid"])
                 matches.append(
                     {
+                        "node_uuid": row["node_uuid"],
                         "domain": row["domain"],
                         "path": row["path"],
                         "uri": row["uri"],

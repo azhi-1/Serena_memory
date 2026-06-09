@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Migration Script: Neo4j -> SQLite (Legacy)
 
 This script migrates memory data from the old Neo4j backend (pre-1.0) to SQLite.
-It is kept for users upgrading from pre-SQLite versions of Nocturne Memory.
+It is kept for users upgrading from pre-SQLite versions of Serena Memory.
 
 NOTE: The neo4j driver is NOT included in requirements.txt.
       Install it separately before running:
@@ -16,7 +16,7 @@ Required .env variables for migration:
     dbpassword=your_password
 
 Mapping (Neo4j -> SQLite URI):
-    Entity  `nocturne`           -> core://nocturne
+    Entity  `Serena`           -> core://Serena
     Relation `rel:A>B`           -> core://A/B
     Chapter  `chap:A>B:name`     -> core://A/B/name
 
@@ -399,7 +399,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="Migrate Nocturne Memory data from Neo4j (pre-1.0) to SQLite (v1.0)."
+        description="Migrate Serena Memory data from Neo4j (pre-1.0) to SQLite (v1.0)."
     )
     parser.add_argument(
         "--domain", default="core",

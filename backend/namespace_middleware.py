@@ -1,4 +1,4 @@
-"""
+﻿"""
 ASGI middleware for namespace extraction.
 
 Shared by both the SSE/Streamable HTTP entry point (run_sse.py)
@@ -52,7 +52,7 @@ class FileSSESessionStore:
     Replaces the in-memory dict to allow multiple workers to share the mapping.
     """
     def __init__(self) -> None:
-        self.store_dir = os.path.join(tempfile.gettempdir(), "nocturne_sse_sessions")
+        self.store_dir = os.path.join(tempfile.gettempdir(), "Serena_sse_sessions")
         os.makedirs(self.store_dir, exist_ok=True)
 
     def _path(self, session_id: str) -> str:

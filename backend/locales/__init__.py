@@ -1,5 +1,5 @@
-"""
-Locale loader — lightweight i18n for Nocturne Memory.
+﻿"""
+Locale loader — lightweight i18n for Serena Memory.
  
 Provides ``t(key, locale=None)`` as the single entry point for translation:
  
@@ -33,7 +33,7 @@ def _load_json(locale: str) -> dict:
         path = _LOCALES_DIR / f"{locale}.json"
         if path.exists():
             try:
-                with open(path, encoding="utf-8") as f:
+                with open(path, encoding="utf-8-sig") as f:
                     _cache[locale] = json.load(f)
             except (json.JSONDecodeError, OSError):
                 _cache[locale] = {}

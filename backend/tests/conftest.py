@@ -119,6 +119,34 @@ async def search_indexer():
 
 
 @pytest_asyncio.fixture
+async def vector_indexer():
+    from db import get_vector_indexer
+
+    return get_vector_indexer()
+
+
+@pytest_asyncio.fixture
+async def remote_summary_service():
+    from db import get_remote_summary_service
+
+    return get_remote_summary_service()
+
+
+@pytest_asyncio.fixture
+async def recall_service():
+    from db import get_recall_service
+
+    return get_recall_service()
+
+
+@pytest_asyncio.fixture
+async def source_validator():
+    from db import get_source_validator
+
+    return get_source_validator()
+
+
+@pytest_asyncio.fixture
 async def api_client():
     main = _reload_module("main")
     from db import get_db_manager

@@ -1,7 +1,7 @@
-# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportOperatorIssue=false
+﻿# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportOperatorIssue=false
 
 """
-Glossary (豆辞典) Service for Nocturne Memory System.
+Glossary (豆辞典) Service for Serena Memory System.
 
 Manages keyword-to-node bindings and provides Aho-Corasick-based
 content scanning for keyword highlighting.

@@ -1,4 +1,4 @@
-{
+﻿{
   "api": {
     "browse": {
       "path_not_found": "Path not found: {uri}",
@@ -126,10 +126,10 @@
   },
   "config": {
     "docker_hint": "Docker configuration is missing or invalid.\n\nIf you upgraded an older Docker deployment, run this on the host from\nthe repository root:\n\n  python scripts/setup_docker.py\n  docker compose up -d --build\n\nThis migrates the old .env settings into config.json while preserving\nyour existing PostgreSQL credentials and volume.\n\nIf ./config.json was accidentally created as a directory by Docker,\nremove that directory first, then rerun the setup command.",
-    "demo_copied": "[Nocturne] Copied {demo_db} → {target} (your data is now safe from git pull overwrites)",
-    "using_db": "[Nocturne] Using {name} as your database",
-    "migrating_dotenv": "[Nocturne] Migrating settings from .env → config.json",
-    "generating_env": "[Nocturne] Generating config.json from environment variables",
+    "demo_copied": "[Serena] Copied {demo_db} → {target} (your data is now safe from git pull overwrites)",
+    "using_db": "[Serena] Using {name} as your database",
+    "migrating_dotenv": "[Serena] Migrating settings from .env → config.json",
+    "generating_env": "[Serena] Generating config.json from environment variables",
     "permission_denied": "[Warning] Permission denied writing to {filename}. Settings will only persist in memory until restart.",
     "permission_docker_hint": "If using Docker on Linux, ensure the container user (UID 1000) has write access (e.g. run `sudo chown 1000 config.json` on the host).",
     "permission_local_hint": "Ensure the current user has write access to this file and its parent directory.",
@@ -140,15 +140,15 @@
     "ui_missing": "Admin UI missing index.html."
   },
   "startup": {
-    "npm_not_found": "[Nocturne] Admin UI not built and npm not found. Install Node.js or build manually: cd frontend && npm install && npm run build",
-    "building": "[Nocturne] First run — building Admin UI (this may take a minute)...",
+    "npm_not_found": "[Serena] Admin UI not built and npm not found. Install Node.js or build manually: cd frontend && npm install && npm run build",
+    "building": "[Serena] First run — building Admin UI (this may take a minute)...",
     "installing_deps": "Installing dependencies",
     "compiling": "Compiling",
     "step_progress": "  {label}...",
-    "build_failed": "[Nocturne] '{cmd}' failed (exit {exit_code}):\n{error_msg}",
-    "build_error": "[Nocturne] Auto-build failed: {error}\n  Build manually: cd frontend && npm install && npm run build",
-    "admin_ready": "[Nocturne] Admin UI ready.",
-    "port_in_use": "\n[Nocturne] Notice: Admin UI skipped (Port {port} in use).\n[Nocturne] This is expected if another MCP instance is already providing the UI.\n[Nocturne] The MCP server itself will continue to operate normally.",
+    "build_failed": "[Serena] '{cmd}' failed (exit {exit_code}):\n{error_msg}",
+    "build_error": "[Serena] Auto-build failed: {error}\n  Build manually: cd frontend && npm install && npm run build",
+    "admin_ready": "[Serena] Admin UI ready.",
+    "port_in_use": "\n[Serena] Notice: Admin UI skipped (Port {port} in use).\n[Serena] This is expected if another MCP instance is already providing the UI.\n[Serena] The MCP server itself will continue to operate normally.",
     "admin_ui_label": "Admin UI:  {url}",
     "rest_api_label": "REST API:  {url}"
   },

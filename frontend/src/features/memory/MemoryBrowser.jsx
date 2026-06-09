@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Folder, 
@@ -29,7 +29,7 @@ import DomainNode from './components/MemorySidebar';
 import Breadcrumb from './components/Breadcrumb';
 import NodeGridCard from './components/NodeGridCard';
 
-const NAMESPACE_SWITCH_ROOT_REDIRECT_KEY = 'nocturne:namespace-switch-root-redirect';
+const NAMESPACE_SWITCH_ROOT_REDIRECT_KEY = 'Serena:namespace-switch-root-redirect';
 const NAMESPACE_SWITCH_REDIRECT_TTL_MS = 30_000;
 
 const consumeNamespaceSwitchRedirect = () => {

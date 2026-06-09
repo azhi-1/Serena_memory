@@ -1,7 +1,7 @@
-# pyright: reportArgumentType=false, reportAttributeAccessIssue=false
+﻿# pyright: reportArgumentType=false, reportAttributeAccessIssue=false
 
 """
-ORM Models and shared utilities for Nocturne Memory System.
+ORM Models and shared utilities for Serena Memory System.
 
 Graph-based memory storage with:
 - Node: a conceptual entity (UUID), version-independent
@@ -22,6 +22,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     UniqueConstraint,
+    CheckConstraint,
     Index,
     text,
 )
@@ -267,6 +268,60 @@ class Preset(Base):
             unique=True,
             postgresql_where=text("is_active = true"),
             sqlite_where=text("is_active = 1"),
+        ),
+    )
+
+
+class RemoteSummaryBatch(Base):
+    """A settled LLM summary over a set/range of near memories.
+
+    Source provenance is tracked in RemoteSummarySource rows.
+    Embeddings are stored in memory_embeddings with
+    node_uuid = batch.id and source_type = 'remote_summary'.
+    """
+
+    __tablename__ = "remote_summary_batches"
+
+    id = Column(String(36), primary_key=True)
+    namespace = Column(String(64), nullable=False, default="")
+    domain = Column(String(64), nullable=False, default="core")
+    title = Column(Text, nullable=False, default="")
+    summary_text = Column(Text, nullable=False)
+    status = Column(String(16), nullable=False, default="active")
+    source_count = Column(Integer, nullable=False, default=0)
+    summary_model = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'superseded')", name="ck_batch_status"),
+    )
+
+
+class RemoteSummarySource(Base):
+    """Provenance link from a summary batch back to each source memory/node."""
+
+    __tablename__ = "remote_summary_sources"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id = Column(
+        String(36),
+        ForeignKey("remote_summary_batches.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    namespace = Column(String(64), nullable=False, default="")
+    source_node_uuid = Column(String(36), nullable=False, index=True)
+    source_memory_id = Column(Integer, nullable=False)
+    source_domain = Column(String(64), nullable=False, default="core")
+    source_path = Column(String(512), nullable=False, default="")
+    source_uri = Column(Text, nullable=False, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "batch_id", "source_node_uuid", "source_memory_id", "namespace",
+            name="uq_remote_summary_source_link",
         ),
     )
 

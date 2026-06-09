@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import contextlib
 import threading
@@ -6,7 +6,7 @@ import time
 import webbrowser
 
 # Prevent the MCP lifespan from starting a duplicate embedded web server.
-os.environ["_NOCTURNE_SSE_MODE"] = "1"
+os.environ["_SERENA_MEMORY_SSE_MODE"] = "1"
 
 import uvicorn
 
@@ -32,7 +32,7 @@ def main():
 
     enforce_network_auth(host=host)
 
-    print("Initializing Nocturne Memory Server...")
+    print("Initializing Serena Memory Server...")
 
     # --- MCP transports ---
     sse_asgi_app = mcp.sse_app("/")

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { ShieldCheck, Database, LayoutGrid, Sparkles, AlertCircle, Layers, Settings } from 'lucide-react';
@@ -13,7 +13,7 @@ import { ToastContainer } from './components/Toast';
 import { AUTH_ERROR_EVENT, getNamespaces } from './lib/api';
 import { detectLocale } from './i18n/index';
 
-const NAMESPACE_SWITCH_ROOT_REDIRECT_KEY = 'nocturne:namespace-switch-root-redirect';
+const NAMESPACE_SWITCH_ROOT_REDIRECT_KEY = 'Serena:namespace-switch-root-redirect';
 
 const consumeTokenFromUrl = () => {
   const params = new URLSearchParams(window.location.search);

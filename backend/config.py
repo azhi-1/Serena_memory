@@ -1,4 +1,4 @@
-"""
+﻿"""
 Configuration management via config.json.
 
 First run (no config.json):
@@ -32,7 +32,7 @@ ROOT_DIR = _BACKEND_DIR if _IN_DOCKER else _BACKEND_DIR.parent
 CONFIG_PATH = ROOT_DIR / "config.json"
 
 _DEMO_DB = "demo.db"
-_USER_DB = "nocturne_data.db"
+_USER_DB = "serena_memory_data.db"
 
 
 def _default_database_url() -> str:
@@ -51,6 +51,8 @@ DEFAULTS: dict[str, Any] = {
     "cors_origins": None,
     "public_readonly_mcp": False,
     "locale": None,
+    "embedding_model": "Qwen/Qwen3-Embedding-8B",
+    "embedding_dimensions": 4096,
 }
 
 _ENV_MAP: dict[str, str] = {
@@ -213,7 +215,7 @@ def _migrate_from_dotenv() -> Optional[dict]:
 
 def _migrate_from_env_vars() -> Optional[dict]:
     """Build config from os.environ (Docker first boot). Returns None if nothing relevant found."""
-    # Only trigger on Nocturne-specific vars to avoid false positives from
+    # Only trigger on Serena-specific vars to avoid false positives from
     # common env vars like PORT that exist in many environments.
     strong_signals = {"DATABASE_URL", "API_TOKEN", "VALID_DOMAINS", "CORE_MEMORY_URIS"}
     if not any(k in strong_signals or k.startswith("CORE_MEMORY_URIS__") for k in os.environ):
@@ -236,7 +238,7 @@ def _load() -> dict:
             if _IN_DOCKER:
                 raise RuntimeError(_docker_setup_hint())
             raise RuntimeError(
-                f"{CONFIG_PATH} is a directory, but Nocturne expects a JSON file."
+                f"{CONFIG_PATH} is a directory, but Serena expects a JSON file."
             )
 
         try:

@@ -1,6 +1,7 @@
-# MCP Tool Reference
+﻿# MCP Tool Reference
 
-> 本文档是 Nocturne Memory MCP Server 提供的 7 个工具的完整参数说明。
+> 本文档是 Serena Memory MCP Server 工具的参数说明。
+> 当前 fork 增加了语义召回、远程摘要和手动 consolidation 工具；以 MCP tool docstring 和测试为最新准绳。
 > 安装 MCP 后，AI 可以直接通过 tool docstring 获取这些信息，无需手动查阅。
 
 ---

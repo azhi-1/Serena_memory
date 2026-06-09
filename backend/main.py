@@ -1,7 +1,7 @@
-# pyright: reportMissingImports=false
+﻿# pyright: reportMissingImports=false
 
 """
-Main Entrypoint for Nocturne Memory Web Server.
+Main Entrypoint for Serena Memory Web Server.
 
 Launches the unified web application which hosts both the REST API and the 
 static frontend SPA admin dashboard.

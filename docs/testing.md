@@ -1,4 +1,4 @@
-## 1. 后端测试分层
+﻿## 1. 后端测试分层
 
 后端测试框架：
 
@@ -77,13 +77,13 @@
 
 **Windows (PowerShell):**
 ```powershell
-$env:TEST_DATABASE_URL="postgresql+asyncpg://user:password@127.0.0.1:5432/nocturne_memory?ssl=disable"
+$env:TEST_DATABASE_URL="postgresql+asyncpg://user:password@127.0.0.1:5432/serena_memory?ssl=disable"
 .\.venv\Scripts\pytest backend/tests/service backend/tests/api -q
 ```
 
 **Linux/macOS:**
 ```bash
-export TEST_DATABASE_URL='postgresql+asyncpg://user:password@127.0.0.1:5432/nocturne_memory?ssl=disable'
+export TEST_DATABASE_URL='postgresql+asyncpg://user:password@127.0.0.1:5432/serena_memory?ssl=disable'
 .venv/bin/pytest backend/tests/service backend/tests/api -q
 ```
 

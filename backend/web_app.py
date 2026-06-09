@@ -1,7 +1,7 @@
-# pyright: reportMissingImports=false
+﻿# pyright: reportMissingImports=false
 
 """
-Unified Web Application Builder for Nocturne Memory.
+Unified Web Application Builder for Serena Memory.
 
 This module consolidates the FastAPI REST API registration, middleware setup,
 and static frontend SPA fallback routing. It is shared across all web-facing
@@ -108,7 +108,7 @@ def build_web_app(*, extra_routes=None, extra_prefixes=None, lifespan=None):
         lifespan:       Optional async context manager for the inner Starlette app.
     """
     api = FastAPI(
-        title="Nocturne Memory API",
+        title="Serena Memory API",
         description="AI长期记忆知识图谱后端",
         version="2.5.4",
         docs_url="/docs",

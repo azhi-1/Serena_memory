@@ -1,17 +1,17 @@
-# Before running: python scripts/setup_docker.py
+﻿# Before running: python scripts/setup_docker.py
 # The setup script auto-generates .env with secure credentials.
 
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-nocturne_memory}
-      POSTGRES_USER: ${POSTGRES_USER:-nocturne}
+      POSTGRES_DB: ${POSTGRES_DB:-serena_memory}
+      POSTGRES_USER: ${POSTGRES_USER:-Serena}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python scripts/setup_docker.py first}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB:-nocturne_memory} -U $${POSTGRES_USER:-nocturne}"]
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB:-serena_memory} -U $${POSTGRES_USER:-Serena}"]
       interval: 5s
       timeout: 5s
       retries: 5

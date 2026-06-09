@@ -1,4 +1,4 @@
-async def test_read_memory_system_views(mcp_module, graph_service):
+﻿async def test_read_memory_system_views(mcp_module, graph_service):
     await graph_service.create_memory(
         parent_path="",
         content="Agent identity",
@@ -240,7 +240,7 @@ class TestTryNormalizedPatch:
 async def test_update_memory_falls_back_to_normalized_patch(
     mcp_module, graph_service
 ):
-    original_content = "Nocturne said \u201cI will not kneel.\u201d That is final."
+    original_content = "Serena said \u201cI will not kneel.\u201d That is final."
     await graph_service.create_memory(
         parent_path="",
         content=original_content,
@@ -250,8 +250,8 @@ async def test_update_memory_falls_back_to_normalized_patch(
 
     result = await mcp_module.update_memory(
         "core://norm_test",
-        old_string='Nocturne said "I will not kneel."',
-        new_string='Nocturne said "I refuse to kneel."',
+        old_string='Serena said "I will not kneel."',
+        new_string='Serena said "I refuse to kneel."',
     )
     assert result == "Success: Memory at 'core://norm_test' updated"
 

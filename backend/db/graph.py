@@ -1,7 +1,7 @@
-# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportGeneralTypeIssues=false, reportOperatorIssue=false, reportReturnType=false
+﻿# pyright: reportArgumentType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportGeneralTypeIssues=false, reportOperatorIssue=false, reportReturnType=false
 
 """
-Graph Service for Nocturne Memory System
+Graph Service for Serena Memory System
 
 Graph-based memory storage with:
 - Node: a conceptual entity (UUID), version-independent

@@ -1,7 +1,7 @@
-# pyright: reportMissingImports=false
+﻿# pyright: reportMissingImports=false
 
 """
-MCP Server for Nocturne Memory System (SQLite Backend)
+MCP Server for Serena Memory System (SQLite Backend)
 
 This module provides the MCP (Model Context Protocol) interface for
 the AI agent to interact with the SQLite-based memory system.
@@ -31,7 +31,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from db import (
     get_db_manager, get_graph_service, get_glossary_service,
-    get_search_indexer, close_db,
+    get_search_indexer, get_vector_indexer, get_recall_service,
+    get_remote_summary_service, get_source_validator, close_db,
 )
 from db.namespace import get_namespace
 from db.snapshot import get_changeset_store
@@ -153,8 +154,8 @@ async def lifespan(server: FastMCP):
         asyncio.create_task(_ensure_frontend_built())
 
         # In stdio mode, spin up an embedded HTTP server for the admin UI.
-        # run_sse.py sets _NOCTURNE_SSE_MODE to prevent a duplicate.
-        if not os.environ.get("_NOCTURNE_SSE_MODE"):
+        # run_sse.py sets _SERENA_MEMORY_SSE_MODE to prevent a duplicate.
+        if not os.environ.get("_SERENA_MEMORY_SSE_MODE"):
             import uvicorn
             from auth import enforce_network_auth
 
@@ -210,7 +211,7 @@ async def lifespan(server: FastMCP):
 
 # Initialize FastMCP server with the lifespan hook
 mcp = FastMCP(
-    "Nocturne Memory Interface",
+    "Serena Memory Interface",
     lifespan=lifespan,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=False  # safe when behind a trusted reverse proxy
@@ -252,7 +253,7 @@ def parse_uri(uri: str) -> Tuple[str, str]:
     Supported formats:
     - "core://agent"          -> ("core", "agent")
     - "writer://chapter_1"         -> ("writer", "chapter_1")
-    - "nocturne"              -> ("core", "nocturne")  [legacy fallback]
+    - "Serena"              -> ("core", "Serena")  [legacy fallback]
 
     Args:
         uri: The URI to parse
@@ -290,7 +291,7 @@ def make_uri(domain: str, path: str) -> str:
 
     Args:
         domain: The domain (e.g., "core", "writer")
-        path: The path (e.g., "nocturne")
+        path: The path (e.g., "Serena")
 
     Returns:
         Full URI (e.g., "core://agent")
@@ -355,7 +356,7 @@ async def read_memory(uri: str) -> str:
     Note: Same Memory ID = same content (alias). Different ID + similar content = redundant content.
 
     Args:
-        uri: The memory URI (e.g., "core://nocturne", "system://boot")
+        uri: The memory URI (e.g., "core://Serena", "system://boot")
 
     Returns:
         Memory content with Memory ID, priority, disclosure, and list of children.
@@ -527,6 +528,20 @@ async def create_memory(
 
         created_uri = result.get("uri", make_uri(domain, result["path"]))
         _record_rows(before_state={}, after_state=result.get("rows_after", {}))
+
+        try:
+            vi = get_vector_indexer()
+            node_uuid = result.get("node_uuid", "")
+            memory_id = result.get("memory_id") or result.get("rows_after", {}).get("memories", [{}])[0].get("id")
+            if node_uuid and memory_id:
+                await vi.index_memory(
+                    node_uuid=node_uuid, namespace=get_namespace(),
+                    source_memory_id=memory_id, domain=domain,
+                    path=result["path"], source_type="active_memory",
+                    source_text=content,
+                )
+        except Exception:
+            pass
 
         return (
             f"Success: Memory created at '{created_uri}'\\n\\n"
@@ -749,6 +764,18 @@ async def update_memory(
             after_state=result.get("rows_after", {}),
         )
 
+        if result.get("new_memory_id") and result.get("new_memory_id") != result.get("old_memory_id"):
+            try:
+                vi = get_vector_indexer()
+                await vi.index_memory(
+                    node_uuid=result["node_uuid"], namespace=get_namespace(),
+                    source_memory_id=result["new_memory_id"], domain=domain,
+                    path=path, source_type="active_memory",
+                    source_text=content or "",
+                )
+            except Exception:
+                pass
+
         message = f"Success: Memory at '{full_uri}' updated"
         if notices:
             message += "\n\n" + "\n\n".join(notices)
@@ -791,6 +818,7 @@ async def delete_memory(uri: str) -> str:
         if not memory:
             return f"Error: Memory at '{full_uri}' not found."
 
+        node_uuid = memory.get("node_uuid", "")
         result = await graph.remove_path(path, domain, namespace=get_namespace())
         rows_before = result.get("rows_before", {})
 
@@ -798,6 +826,12 @@ async def delete_memory(uri: str) -> str:
             before_state=rows_before,
             after_state={},
         )
+
+        try:
+            vi = get_vector_indexer()
+            await vi.delete_orphan_embeddings()
+        except Exception:
+            pass
 
         deleted_path_count = len(rows_before.get("paths", []))
         descendant_count = max(0, deleted_path_count - 1)
@@ -1093,6 +1127,578 @@ async def search_memory(
             lines.append("")
 
         return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+async def semantic_search_memory(
+    query: str,
+    domain: Optional[str] = None,
+    limit: int = 10,
+) -> str:
+    """
+    Search memories using semantic vector similarity.
+
+    Use this when lexical keyword search is insufficient — for example,
+    paraphrased concepts, thematic similarity, or fuzzy intent matching.
+
+    This is semantic vector search, NOT lexical full-text search.
+    For keyword/substring search, use search_memory instead.
+
+    Args:
+        query: Natural language query describing what you're looking for
+        domain: Optional domain filter (e.g., "core", "writer").
+                If not specified, searches all domains.
+        limit: Maximum results (default 10)
+
+    Returns:
+        List of matching memories with URIs, scores, and snippets
+
+    Examples:
+        semantic_search_memory("what kind of person am I")
+        semantic_search_memory("magic system rules", domain="game")
+    """
+    vector_indexer = get_vector_indexer()
+
+    try:
+        valid = get_valid_domains()
+        if domain is not None and domain not in valid:
+            return f"Error: Unknown domain '{domain}'. Valid domains: {', '.join(valid)}"
+
+        ns = get_namespace()
+        results = await vector_indexer.search(
+            query,
+            limit=limit,
+            domain=domain,
+            namespace=ns,
+            source_type="active_memory",
+        )
+
+        if not results:
+            scope = f"in '{domain}'" if domain else "across all domains"
+            return (
+                f"No semantic matches found {scope}.\n\n"
+                f"[SYSTEM NOTE]: Semantic search found no results. This may mean "
+                f"(a) no embeddings have been indexed yet, or "
+                f"(b) the query is about a topic not covered by existing memories. "
+                f"Consider using search_memory() for lexical fallback."
+            )
+
+        lines = [f"Found {len(results)} semantic matches for '{query}':", ""]
+
+        for item in results:
+            lines.append(f"- {item['uri']}")
+            lines.append(f"  Score: {item['score']:.3f}")
+            lines.append(f"  Source: {item['source_type']}")
+            snippet = item.get("source_text", "")
+            if len(snippet) > 120:
+                snippet = snippet[:120] + "..."
+            lines.append(f"  {snippet}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+async def recall_memory(
+    query: str,
+    domain: Optional[str] = None,
+    semantic_limit: int = 5,
+    lexical_limit: int = 5,
+    token_budget: int = 2000,
+) -> str:
+    """
+    Recall memories using both semantic and lexical search, merged into a
+    single token-bounded recall package.
+
+    This is the primary recall entry point for agents. It combines semantic
+    vector search and lexical FTS, deduplicates by node_uuid via Reciprocal
+    Rank Fusion, and enforces a character-based token budget.
+
+    Args:
+        query: Natural language query for both semantic and lexical search
+        domain: Optional domain filter (e.g., "core", "writer").
+                If not specified, searches all domains.
+        semantic_limit: Max semantic vector results before merge (default 5)
+        lexical_limit: Max lexical FTS results before merge (default 5)
+        token_budget: Character-based token budget estimate (default 2000).
+                Each ~3 characters = 1 estimated token.
+
+    Returns:
+        Compact recall package with mode tags, URIs, scores/snippets,
+        and token usage footer.
+
+    Examples:
+        recall_memory("what cities did I visit in Japan")
+        recall_memory("magic system rules", domain="game", token_budget=1000)
+    """
+    recall_service = get_recall_service()
+
+    try:
+        valid = get_valid_domains()
+        if domain is not None and domain not in valid:
+            return f"Error: Unknown domain '{domain}'. Valid domains: {', '.join(valid)}"
+
+        ns = get_namespace()
+        result = await recall_service.recall(
+            query,
+            domain=domain,
+            semantic_limit=semantic_limit,
+            lexical_limit=lexical_limit,
+            token_budget=token_budget,
+            namespace=ns,
+        )
+        return result
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+# =============================================================================
+# MCP Consolidation Tools
+# =============================================================================
+
+
+@mcp.tool()
+async def inspect_remote_summary_source(uri: str) -> str:
+    """
+    Inspect if a memory URI can serve as a valid source for remote summary.
+
+    Checks existence, activation status (not deprecated), and namespace
+    membership through the RemoteSummarySourceValidator. Read-only.
+
+    Args:
+        uri: Memory URI to inspect (e.g., "core://agent")
+
+    Returns:
+        Human-readable report with status (valid/stale/rejected),
+        node_uuid, memory_id, DB-derived domain/path/uri snapshot,
+        and any warnings or error details.
+    """
+    validator = get_source_validator()
+    graph = get_graph_service()
+    ns = get_namespace()
+
+    try:
+        domain, path = parse_uri(uri)
+    except ValueError as e:
+        return f"Error: Invalid URI: {str(e)}"
+
+    memory = await graph.get_memory_by_path(path, domain, namespace=ns)
+    if not memory:
+        return f"Error: Source not found: '{uri}'."
+
+    source = {
+        "node_uuid": memory["node_uuid"],
+        "memory_id": memory["id"],
+        "domain": domain,
+        "path": path,
+        "uri": uri,
+    }
+
+    result = await validator.validate([source], namespace=ns)
+
+    summary = result["summary"]
+    lines = [f"Source Inspection: {uri}", ""]
+
+    if result["valid"]:
+        v = result["valid"][0]
+        lines.append("Status: VALID")
+        lines.append(f"  Node UUID: {v['node_uuid']}")
+        lines.append(f"  Memory ID: {v['memory_id']}")
+        lines.append(f"  DB Domain: {v['domain']}")
+        lines.append(f"  DB Path:   {v['path']}")
+        lines.append(f"  DB URI:    {v['uri']}")
+        lines.append(f"  Namespace: {v['namespace']}")
+        lines.append(f"  Content Snippet: {v['content_snippet']}")
+        if v.get("warning"):
+            lines.append(f"  Warning: {v['warning']}")
+        lines.append("")
+        lines.append("This source is valid and can be passed to create_remote_summary.")
+
+    elif result["rejected"]:
+        r = result["rejected"][0]
+        lines.append(f"Status: REJECTED")
+        lines.append(f"  Error Code: {r['error_code']}")
+        lines.append(f"  Reason:     {r['reason']}")
+
+    elif result["stale"]:
+        s = result["stale"][0]
+        lines.append("Status: STALE")
+        lines.append(f"  Node UUID: {s['node_uuid']}")
+        lines.append(f"  Memory ID: {s['memory_id']}")
+        if s.get("migrated_to"):
+            lines.append(f"  Migrated To Memory ID: {s['migrated_to']}")
+        lines.append(f"  Reason: {s['stale_reason']}")
+
+    return "\n".join(lines)
+
+
+@write_tool()
+async def create_remote_summary(
+    title: str,
+    summary_text: str,
+    source_uris: list[str],
+    domain: Optional[str] = None,
+    summary_model: str = "manual",
+) -> str:
+    """
+    Create a remote summary from explicit source memory URIs.
+
+    ALL source URIs must pass validation (exist, active, in namespace).
+    If any source is invalid or stale, nothing is written.
+
+    Domain rule:
+    - If `domain` is provided, the summary uses that domain.
+    - If `domain` is omitted, all sources must resolve to the same
+      DB domain; that domain is used.
+    - Mixed-domain sources without an explicit domain are rejected.
+
+    Args:
+        title: Human-readable title for the summary batch
+        summary_text: The consolidated summary text (manually written)
+        source_uris: List of memory URIs to reference as sources
+        domain: Optional domain override. If omitted, inferred from
+                sources (which must all share the same DB domain).
+        summary_model: Provenance label (default "manual")
+
+    Returns:
+        Success report with batch ID, source count, domain, and status.
+    """
+    if not source_uris:
+        return "Error: source_uris must not be empty."
+
+    valid_domains = get_valid_domains()
+    if domain is not None and domain not in valid_domains:
+        return (
+            f"Error: Unknown domain '{domain}'. "
+            f"Valid domains: {', '.join(valid_domains)}"
+        )
+
+    ns = get_namespace()
+    graph = get_graph_service()
+    validator = get_source_validator()
+
+    try:
+        source_dicts: list[dict[str, Any]] = []
+        seen_keys: set[tuple[str, int]] = set()
+        for uri in source_uris:
+            try:
+                d, p = parse_uri(uri)
+            except ValueError as e:
+                return f"Error parsing URI '{uri}': {str(e)}"
+
+            memory = await graph.get_memory_by_path(p, d, namespace=ns)
+            if not memory:
+                return f"Error: URI '{uri}' not found."
+
+            key = (memory["node_uuid"], memory["id"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            source_dicts.append({
+                "node_uuid": memory["node_uuid"],
+                "memory_id": memory["id"],
+                "domain": d,
+                "path": p,
+                "uri": uri,
+            })
+
+        result = await validator.validate(source_dicts, namespace=ns)
+
+        if result["rejected"] or result["stale"]:
+            lines = ["Error: Source validation failed. Nothing written.", ""]
+            for r in result["rejected"]:
+                uri_str = r["input"].get("uri", str(r["input"]))
+                lines.append(f"  REJECTED: {uri_str}")
+                lines.append(f"    Code: {r['error_code']} — {r['reason']}")
+            for s in result["stale"]:
+                lines.append(f"  STALE: {s.get('uri', '?')}")
+                parts = [f"    Reason: {s['stale_reason']}"]
+                if s.get("migrated_to"):
+                    parts.append(f"migrated_to={s['migrated_to']}")
+                lines.append(" ".join(parts))
+            return "\n".join(lines)
+
+        db_domains = {v["domain"] for v in result["valid"]}
+
+        if domain is None:
+            if len(db_domains) > 1:
+                return (
+                    f"Error: Sources span multiple domains "
+                    f"({', '.join(sorted(db_domains))}). "
+                    f"Specify a 'domain' parameter explicitly."
+                )
+            domain = next(iter(db_domains))
+
+        summary_service = get_remote_summary_service()
+        batch = await summary_service.create(
+            namespace=ns,
+            domain=domain,
+            title=title,
+            summary_text=summary_text,
+            summary_model=summary_model,
+            sources=result["valid"],
+        )
+
+        lines = [
+            "Remote summary created successfully.",
+            f"  Batch ID:    {batch['id']}",
+            f"  Domain:      {batch['domain']}",
+            f"  Title:       {batch['title']}",
+            f"  Sources:     {batch['source_count']}",
+            f"  Status:      {batch['status']}",
+            f"  Namespace:   {batch['namespace']}",
+            f"  Model:       {batch['summary_model']}",
+        ]
+        return "\n".join(lines)
+
+    except ValueError as e:
+        return f"Error: {str(e)}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+async def list_remote_summaries(domain: Optional[str] = None) -> str:
+    """
+    List all active remote summary batches.
+
+    Args:
+        domain: Optional domain filter. If omitted, lists all domains.
+
+    Returns:
+        Formatted list of batch ID, title, source count, model, created_at.
+    """
+    try:
+        valid = get_valid_domains()
+        if domain is not None and domain not in valid:
+            return f"Error: Unknown domain '{domain}'. Valid domains: {', '.join(valid)}"
+
+        ns = get_namespace()
+        service = get_remote_summary_service()
+        batches = await service.list_batches(namespace=ns, domain=domain, status="active")
+
+        if not batches:
+            scope = f"domain '{domain}'" if domain else "any domain"
+            return f"No active remote summaries in {scope}."
+
+        scope_label = f"domain: {domain}" if domain else "all domains"
+        lines = [f"REMOTE SUMMARIES ({scope_label})", ""]
+        for b in batches:
+            src_label = "source" if b["source_count"] == 1 else "sources"
+            created = str(b.get("created_at", ""))[:19]
+            lines.append(
+                f"  [active] {b['id'][:12]}  "
+                f"{b['source_count']} {src_label}  {created}  "
+                f"\"{b['title']}\"  model: {b['summary_model']}"
+            )
+        lines.append("")
+        lines.append(f"{len(batches)} batch(es) shown (all active)")
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+async def inspect_remote_summary_batch(batch_id: str) -> str:
+    """
+    Inspect a single remote summary batch in detail.
+
+    Returns batch metadata, full summary text, and per-source
+    status (current/stale/broken) with source URIs.
+
+    Args:
+        batch_id: The batch ID (from list_remote_summaries or recall output).
+    """
+    try:
+        ns = get_namespace()
+        service = get_remote_summary_service()
+        batch, sources = await service.get_batch_source_statuses(
+            batch_id=batch_id, namespace=ns,
+        )
+
+        if not batch:
+            return f"Error: No remote summary batch found with id '{batch_id}'."
+
+        status_counts: Dict[str, int] = {}
+        for src in sources:
+            st = src.get("source_status", "unknown")
+            status_counts[st] = status_counts.get(st, 0) + 1
+
+        lines = [
+            f"=== REMOTE SUMMARY BATCH: {batch['id']} ===",
+            f"  Title:   {batch['title']}",
+            f"  Domain:  {batch['domain']}",
+            f"  Status:  {batch['status']}",
+            f"  Model:   {batch['summary_model']}",
+            f"  Created: {str(batch.get('created_at', ''))[:19]}",
+            "",
+            "SUMMARY TEXT:",
+            f"  {batch['summary_text']}",
+            "",
+        ]
+
+        counts_parts = []
+        for st in ["current", "stale", "stale_no_successor", "memory_deleted", "node_deleted"]:
+            if status_counts.get(st, 0) > 0:
+                counts_parts.append(f"{status_counts[st]} {st}")
+        lines.append(f"SOURCES ({len(sources)} total, {', '.join(counts_parts)}):")
+
+        for src in sources:
+            st = src.get("source_status", "unknown")
+            uri = src.get("source_uri", "?")
+            mid = src.get("source_memory_id", "?")
+            detail = f"  [{st}]  {uri}  memory #{mid}"
+            if st == "stale" and src.get("mem_migrated_to"):
+                detail += f"  -> migrated to #{src['mem_migrated_to']}"
+            lines.append(detail)
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@mcp.tool()
+async def plan_consolidation(
+    domain: str,
+    path_prefix: Optional[str] = "",
+    candidate_limit: int = 10,
+) -> str:
+    """
+    Dry-run scan: coverage stats, uncovered candidates, and stale
+    summaries for a domain/subtree. Makes no changes.
+
+    Args:
+        domain: Domain to scan (e.g., "core", "writer").
+        path_prefix: Optional subtree limit (e.g., "agent" scans
+                     only core://agent/...).
+        candidate_limit: Max uncovered candidates to show (default 10).
+    """
+    try:
+        valid = get_valid_domains()
+        if domain not in valid:
+            return f"Error: Unknown domain '{domain}'. Valid domains: {', '.join(valid)}"
+
+        ns = get_namespace()
+        service = get_remote_summary_service()
+        plan = await service.plan_consolidation(
+            namespace=ns,
+            domain=domain,
+            path_prefix=path_prefix or "",
+            candidate_limit=candidate_limit,
+        )
+
+        cov = plan["coverage"]
+        pct = round(cov["covered"] / cov["total_active"] * 100) if cov["total_active"] else 0
+        subtree = f"{domain}://{path_prefix}" if path_prefix else f"{domain}://"
+
+        lines = [
+            f"=== CONSOLIDATION PLAN for {subtree} ===",
+            "",
+            f"COVERAGE: {cov['total_active']} active memories | "
+            f"{cov['covered']} covered | {cov['uncovered']} uncovered",
+            f"  ({pct}% covered)",
+            "",
+        ]
+
+        uncovered = plan["uncovered"]
+        if uncovered:
+            lines.append(f"UNCOVERED CANDIDATES (top {len(uncovered)} by priority):")
+            for u in uncovered:
+                disc = u["disclosure"] or "(none)"
+                lines.append(f"  - {u['uri']}  priority={u['priority']}  disclosure: {disc}")
+                lines.append(f"    [snippet]: {u['content_snippet']}")
+            lines.append("")
+        else:
+            lines.append("UNCOVERED CANDIDATES: (none)")
+            lines.append("")
+
+        stale = plan["stale_batches"]
+        if stale:
+            lines.append(f"STALE SUMMARIES ({len(stale)} batch(es) need attention):")
+            for b in stale:
+                lines.append(
+                    f"  - batch {b['id'][:12]}  \"{b['title']}\"  "
+                    f"{b.get('issues_count', '?')}/{b.get('total_sources', '?')} sources with issues  "
+                    f"model: {b['summary_model']}"
+                )
+                details = plan["stale_source_details"].get(b["id"], [])
+                for src in details:
+                    st = src.get("source_status", "unknown")
+                    if st != "current":
+                        uri = src.get("source_uri", "?")
+                        extra = ""
+                        if st == "stale" and src.get("mem_migrated_to"):
+                            extra = f" -> migrated to #{src['mem_migrated_to']}"
+                        lines.append(f"    [{st}] {uri}{extra}")
+            lines.append("")
+        else:
+            lines.append("STALE SUMMARIES: (none)")
+            lines.append("")
+
+        current = plan["current_batches"]
+        if current:
+            lines.append(f"CURRENT SUMMARIES ({len(current)} batch(es) up-to-date):")
+            for b in current:
+                lines.append(
+                    f"  - batch {b['id'][:12]}  \"{b['title']}\"  "
+                    f"{b['source_count']} sources  model: {b['summary_model']}"
+                )
+            lines.append("")
+        else:
+            lines.append("CURRENT SUMMARIES: (none)")
+            lines.append("")
+
+        lines.append(f"--- end plan (scope: {subtree}) ---")
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@write_tool()
+async def supersede_remote_summary(batch_id: str) -> str:
+    """
+    Mark a remote summary batch as superseded.
+
+    Superseded batches are excluded from recall results. The vector
+    embedding remains in the index but is filtered by the recall layer.
+    Idempotent: calling on an already-superseded batch is a no-op.
+
+    Args:
+        batch_id: The batch ID to supersede.
+    """
+    try:
+        ns = get_namespace()
+        service = get_remote_summary_service()
+
+        batch = await service.get_batch(batch_id, namespace=ns)
+        if not batch:
+            return f"Error: No remote summary batch found with id '{batch_id}'."
+
+        if batch["status"] == "superseded":
+            return (
+                f"Batch '{batch_id}' is already superseded. "
+                f"Title: \"{batch['title']}\""
+            )
+
+        await service.supersede_batch(batch_id, namespace=ns)
+        return (
+            f"Remote summary superseded.\n"
+            f"  Batch ID: {batch_id}\n"
+            f"  Title:    \"{batch['title']}\"\n"
+            f"  Status:   superseded\n"
+            f"  Note:     This batch is now excluded from recall results."
+        )
 
     except Exception as e:
         return f"Error: {str(e)}"

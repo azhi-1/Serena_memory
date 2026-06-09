@@ -1,6 +1,6 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-export const AUTH_ERROR_EVENT = 'nocturne:auth-error';
+export const AUTH_ERROR_EVENT = 'Serena:auth-error';
 
 export const api = axios.create({
   baseURL: '/api'

@@ -1,5 +1,5 @@
-"""
-Docker deployment setup for Nocturne Memory.
+﻿"""
+Docker deployment setup for Serena Memory.
 
 Generates secure credentials and writes:
   - .env          (POSTGRES_PASSWORD for docker-compose)
@@ -53,7 +53,7 @@ def _extract_pg_credentials_from_url(url: str) -> tuple[str | None, str | None, 
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Setup Nocturne Memory for Docker deployment")
+    parser = argparse.ArgumentParser(description="Setup Serena Memory for Docker deployment")
     parser.add_argument("--port", type=int, default=None, help="Nginx port (default: 80)")
     parser.add_argument("--force", action="store_true", help="Overwrite existing files")
     args = parser.parse_args()
@@ -92,9 +92,9 @@ def main():
         pg_password = pg_password or p
         pg_db = pg_db or d
         
-    pg_user = pg_user or "nocturne"
+    pg_user = pg_user or "Serena"
     pg_password = pg_password or generate_token(24)
-    pg_db = pg_db or "nocturne_memory"
+    pg_db = pg_db or "serena_memory"
 
     # --- Resolve Nginx port ---
     if args.port is not None:
@@ -155,7 +155,7 @@ def main():
     # --- Summary ---
     print()
     print("=" * 60)
-    print("  Nocturne Memory — Docker Setup Complete")
+    print("  Serena Memory — Docker Setup Complete")
     print("=" * 60)
     print()
     print("  Next steps:")

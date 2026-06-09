@@ -1,7 +1,7 @@
-{
+﻿{
   "app": {
     "nav": {
-      "brand": "Nocturne 管理面板",
+      "brand": "Serena 管理面板",
       "review": "审查与审计",
       "memory": "记忆浏览器",
       "maintenance": "大脑清理",
@@ -9,7 +9,7 @@
     },
     "settings": {
       "title": "设置",
-      "subtitle": "管理你的 Nocturne Memory 实例配置。",
+      "subtitle": "管理你的 Serena Memory 实例配置。",
       "tab_general": "通用",
       "tab_database": "数据库",
       "tab_memory": "记忆",
@@ -36,7 +36,7 @@
     }
   },
   "auth": {
-    "title": "Nocturne Admin",
+    "title": "Serena Admin",
     "subtitle": "记忆管理面板",
     "token_label": "请输入 API Token",
     "token_placeholder": "输入你的 API Token...",
@@ -44,7 +44,7 @@
     "verifying": "验证中...",
     "invalid_token": "Token 无效，请检查后重试",
     "network_error": "连接失败，请检查服务器状态",
-    "footer": "Nocturne Memory"
+    "footer": "Serena Memory"
   },
   "settings": {
     "server": {

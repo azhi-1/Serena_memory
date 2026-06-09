@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { Link2, X, Save, Plus, Loader2 } from 'lucide-react';
 import { api, deleteNode, addAlias } from '../../../lib/api';
 import { useLocale } from '../../../i18n/useLocale';
@@ -6,7 +6,7 @@ import { useLocale } from '../../../i18n/useLocale';
 const AliasManager = ({ aliases, currentDomain, currentPath, onUpdate }) => {
   const { t } = useLocale();
   const [adding, setAdding] = useState(false);
-  const [pathSegments, setPathSegments] = useState([]);   // selected segments: ['nocturne', 'salem']
+  const [pathSegments, setPathSegments] = useState([]);   // selected segments: ['Serena', 'salem']
   const [childrenByLevel, setChildrenByLevel] = useState([[]]); // options at each level
   const [leafName, setLeafName] = useState('');
   const [newDisclosure, setNewDisclosure] = useState('');

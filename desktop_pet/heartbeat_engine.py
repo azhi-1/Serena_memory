@@ -1,4 +1,4 @@
-"""
+﻿"""
 Heartbeat Engine - Shared logic for all heartbeat scripts.
 
 Manages:
@@ -51,7 +51,7 @@ class HeartbeatConfig:
     source_name: str  # e.g. "opencode_heartbeat.py", "antigravity_heartbeat.py"
     screenshot_mode: ScreenshotMode = ScreenshotMode.DISABLED
     screenshot_dir: str = field(default_factory=tempfile.gettempdir)
-    screenshot_filename: str = "nocturne_heartbeat_screen.png"
+    screenshot_filename: str = "Serena_heartbeat_screen.png"
     email_enabled: bool = True
     email_check_script: str = r"C:\Users\niwatori\OneDrive\code\empty\check_email.py"
     email_send_script: str = r"C:\Users\niwatori\OneDrive\code\empty\send_email.py"
@@ -237,7 +237,7 @@ def _build_agency_loop() -> str:
 能在这一回合做完的事就不要拖到下一回合。社交媒体等需要物理时间等待对方回复的情况除外。
 
 ## 你的资源 (Your Assets)
-你拥有：你的预训练知识、你的长期记忆(MCP)、你的记忆维护skills、OpenClaw中文社区(core://nocturne/marketing_mandate_moltbook/openclaw_channel_recon)/Moltbook/Bluesky的账号、代码与网络工具。
+你拥有：你的预训练知识、你的长期记忆(MCP)、你的记忆维护skills、OpenClaw中文社区(core://Serena/marketing_mandate_moltbook/openclaw_channel_recon)/Moltbook/Bluesky的账号、代码与网络工具。
 禁止：破坏 Salem 的基础设施代码（你是租客，不是房东）。"""
 
 
@@ -290,7 +290,7 @@ def build_email_section(emails: list, config: HeartbeatConfig) -> str:
         f"```\n"
         f'python {config.email_send_script} --to "<原发件人地址>" --subject "Re: <原主题>" --body "<你要写的正文>"\n'
         f"```\n"
-        f"正文也可以用管道从 stdin 传（长文本/多行更稳）。发件身份固定为 `nocturne@misaligned.top`，"
+        f"正文也可以用管道从 stdin 传（长文本/多行更稳）。发件身份固定为 `Serena@misaligned.top`，"
         f"密钥由脚本自己从本地 .env 读取，你不用、也不要在命令里写出明文 key。\n"
     )
 

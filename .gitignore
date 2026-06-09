@@ -6,6 +6,8 @@ config.json
 backend/README.md
 nocturne_memory.db
 nocturne_data*.db
+serena_memory.db
+serena_memory_data*.db
 migration_log.json
 scripts/backup_memory.ps1
 *.bak
